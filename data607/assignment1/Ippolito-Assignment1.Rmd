@@ -1,0 +1,138 @@
+---
+title: "DATA607 - Assignment1"
+author: "Michael Ippolito"
+date: "2/4/2021"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview  
+  
+In their article, Why Americans Don't Vote, Thomson-Deveaux et al. (2020) explored the reasons why a large number of eligible voters (35 to 60 percent) don't vote in US elections and at the voting habits of voters broken out by various categories (age, level of education, race, gender, and income). The data collected confirmed the well-accepted notion that older, more educated people with higher incomes and stronger party affiliations are more likely to vote. Of voters who never, rarely, or only sometimes vote in US elections, Thomson-Deveaux et al. reported the top reasons why that was the case. My assignment will focus on the specific polling question that dealt with the reason why people often don't vote, categorized by the frequency with which they do vote.  
+  
+Article citation:  
+FiveThirtyEight (2020). Why Americans Don't Vote. https://projects.fivethirtyeight.com/non-voters-poll-2020-election/.  
+  
+## Load libraries, retrieve data from github, and parse CSV  
+
+```{r warning=FALSE}
+
+library(tidyverse)
+library(RCurl)
+nonvoters_csv <- getURL("https://raw.githubusercontent.com/fivethirtyeight/data/master/non-voters/nonvoters_data.csv")
+nonvoters <- read.csv(text = nonvoters_csv)
+
+```
+
+## Revelant variables  
+  
+The data included the responses from all survey questions, tabulated in 119 variables and 5,836 observations. For this assignment, the subset I chose included the following variables:  
+  
+| voter_category        How often the voter voted:  
+|                         always  
+|                         sporadic  
+|                         rarely/never  
+|   
+| Q29                   Survey question #29, which asked voters to mark which of the following   
+|                       ten reason were most important factors in why they chose not to vote.
+|                       (A value of 1 indicates the voter marked it as important; a value of -1 means
+|                       they answered the question, but didn't mark this answer as important; and N/A
+|                       means they didn't answer the question.)
+|  
+|                         Q29_1   I didn't like any of the candidates  
+|                         Q29_2   Because of where I live, my vote doesn't matter  
+|                         Q29_3   No matter who wins, nothing will change for people like me  
+|                         Q29_4   Our system is too broken to be fixed by voting  
+|                         Q29_5   I wanted to vote, but I didn't have time, couldn't get off work,  
+|                                 something came up, or I forgot  
+|                         Q29_6   I'm not sure if I can vote  
+|                         Q29_7   Nobody talks about the issues that are important to me personally  
+|                         Q29_8   All the candidates are the same  
+|                         Q29_9   I don't believe in voting  
+|                         Q29_10  Other  
+  
+## Create Q29 array
+  
+```{r}
+
+# Make Q29 into an array so it can be later iterated over in a "for" loop
+q29 <- c(
+  "I didn't like any of the candidates",
+  "Because of where I live, my vote doesn't matter",
+  "No matter who wins, nothing will change for people like me",
+  "Our system is too broken to be fixed by voting",
+  "I wanted to vote, but I didn't have time, couldn't get off work, something came up, or I forgot",
+  "I'm not sure if I can vote",
+  "Nobody talks about the issues that are important to me personally",
+  "All the candidates are the same",
+  "I don't believe in voting",
+  "Other"
+)
+
+```
+
+## Create subset from relevant variables  
+  
+First, filter out voters who "always" vote, and only select voter_category, weight, and the Question 29 responses.  
+
+```{r result='asis'}
+
+# Filter out voters who always vote; only select specific variables
+nonvoters_29 <- as_tibble(select(nonvoters, voter_category, weight, Q29_1:Q29_10)) %>% 
+  filter(voter_category != "always")
+nonvoters_29[1:5,]     # Display first 5 observations
+
+```
+
+## Pivot on Q29 responses
+
+Now create 10 different tibbles--one for each answer in question 29--and group on voter category.
+
+```{r echo=TRUE, results='asis'}
+
+# Iterate over each answer in Question 29
+for(i in 1:10) {
+
+  # Concatenate i to create variable name string
+  q <- paste("Q29_", i, sep = "")
+
+  # Create tibble with weighted count of voters who answered that this was
+  # an important reason why they didn't vote
+  categories <- select(nonvoters_29, voter_category, weight, i + 2) %>% 
+    filter(!is.na(get(q)) & get(q) == 1) %>%
+    group_by(voter_category) %>%
+    summarize(wt = sum(weight))
+
+  # Create tibble with weighted counts of voters who answered this question at all
+  totals <- select(nonvoters_29, voter_category, weight, i + 2) %>% 
+    filter(!is.na(get(q))) %>%
+    group_by(voter_category) %>%
+    summarize(wt_total = sum(weight))
+
+  # Merge the two tibbles
+  subset <- merge(categories, totals, by = "voter_category")
+  
+  # Create a new variable for percentage and print the new tibble
+  subset <- mutate(subset, percentage = wt * 100 / wt_total)
+  print(subset)
+
+  # Plot the bar chart
+  print(ggplot(data = subset, mapping = aes(x = voter_category, y = percentage)) + 
+    geom_bar(stat = "identity", mapping = aes(color = voter_category, fill = voter_category)) + 
+    ggtitle(q29[i]) + 
+    theme(plot.title = element_text(hjust = 0.5)))
+
+}
+
+```
+
+## Conclusions
+  
+As evidenced by the data, voters who never, rarely, or only sporadically vote tend to feel as if nothing will change, regardless of the outcome of an election. Almost as often, they report not feeling any affinity toward any particular candidate. Further, many of them claim that the system is in disrepair and can't be fixed by voting.
+  
+While the above results are interesting (albeit disheartening!), it might be even more telling to further break down each of the above by gender, race, income, and level of education; this might indicate which voters feel disenfranchised and why they feel that way, thereby guiding public policy decisions on possibly mitigation efforts.
