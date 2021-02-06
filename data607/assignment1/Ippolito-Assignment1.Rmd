@@ -5,6 +5,7 @@ date: "2/4/2021"
 output:
   html_document:
     df_print: paged
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -24,7 +25,9 @@ FiveThirtyEight (2020). Why Americans Don't Vote. https://projects.fivethirtyeig
 
 library(tidyverse)
 library(RCurl)
-nonvoters_csv <- getURL("https://raw.githubusercontent.com/fivethirtyeight/data/master/non-voters/nonvoters_data.csv")
+#original URL on fivethirtyeight,com:
+#https://raw.githubusercontent.com/fivethirtyeight/data/master/non-voters/nonvoters_data.csv
+nonvoters_csv <- getURL("https://raw.githubusercontent.com/mmippolito/cuny/main/data607/assignment1/nonvoters_data.csv")
 nonvoters <- read.csv(text = nonvoters_csv)
 
 ```
@@ -135,4 +138,59 @@ for(i in 1:10) {
   
 As evidenced by the data, voters who never, rarely, or only sporadically vote tend to feel as if nothing will change, regardless of the outcome of an election. Almost as often, they report not feeling any affinity toward any particular candidate. Further, many of them claim that the system is in disrepair and can't be fixed by voting.
   
-While the above results are interesting (albeit disheartening!), it might be even more telling to further break down each of the above by gender, race, income, and level of education; this might indicate which voters feel disenfranchised and why they feel that way, thereby guiding public policy decisions on possibly mitigation efforts.
+While the above results are interesting (albeit disheartening!), I'd find it even more telling to further break down the most significant response by gender, race, income, or level of education; this might indicate which voters feel disenfranchised and why they feel that way, thereby guiding public policy decisions on possibly mitigation efforts.
+
+## People who feel as if nothing will change  
+  
+Break the results of response #3 of question 29 out by age, education, race, gender, and income.
+
+```{r result='asis'}
+
+# Filter out voters who always vote; only select response #3 (people who feel as if nothing will change)
+nonvoters_29_3 <- 
+  as_tibble(select(nonvoters, voter_category, weight, ppage, educ, race, gender, income_cat, Q29_3)) %>% 
+  filter(voter_category != "always" & !is.na(Q29_3))
+
+#cut the age variable into categories
+nonvoters_29_3 <- mutate(nonvoters_29_3, age_category = cut(ppage, c(18, 30, 40, 50, 60, 70, 80, 120)))
+nonvoters_29_3[1:5,]     # Display first 5 observations
+
+# Create array of fields we're interestedin
+fields <- c("age_category", "educ", "race", "gender", "income_cat")
+
+# Iterate over each answer in Question 29
+for(i in 1:5) {
+
+  # Create tibble with total weighted counts of voters
+  totals <- select(nonvoters_29_3, weight, fields[i]) %>% 
+    filter(!is.na(fields[i])) %>%
+    group_by_at(fields[i]) %>%
+    summarize(wt_total = sum(weight))
+
+  # Create tibble with weighted count of voters who answered that this was
+  # an important reason why they didn't vote
+  grouped <- select(nonvoters_29_3, weight, Q29_3, fields[i]) %>% 
+    filter(!is.na(fields[i]) & Q29_3 == 1) %>%
+    group_by_at(fields[i]) %>%
+    summarize(wt = sum(weight))
+
+  # Merge the two tibbles
+  subset <- merge(grouped, totals, by = fields[i])
+
+  # Create a new variable for percentage and print the new tibble
+  subset <- mutate(subset, percentage = wt * 100 / wt_total)
+  print(subset)
+
+  # Plot the bar chart
+  print(ggplot(data = subset, mapping = aes(x = fields[i], y = percentage)) + 
+    geom_bar(position = "dodge", stat = "identity", mapping = aes(color = get(fields[i]), fill = get(fields[i]))) + 
+    ggtitle(fields[i]) + 
+    theme(plot.title = element_text(hjust = 0.5)))
+
+}
+
+```
+
+## Further Conclusions
+  
+The additional analysis for Response #3 illustrate which demographics feel their vote doesn't matter. Generally speaking, there was little variation across demographics, with one notable exception: While older voters (70 and older) tend to vote more often than younger ones, they are also the ones who feel their vote doesn't matter. While this inverse relationship is somewhat surprising, the fact that there was little variation among the other demographics is perhaps even more surprising. For example, my expectation was that minorities and females would comprise a greater percentage of voters who feel disengranchised, given the demographic of most elected politicians. Instead, there was little variation among races and genders, which indicates to me that people, in general, feel their vote doesn't matter, regardless of demographic. In a time when there seems to be little to unify us, perhaps we can console ourselves by being united by our disillusionment.
