@@ -3,9 +3,9 @@ title: "DATA607 - Assignment1"
 author: "Michael Ippolito"
 date: "2/4/2021"
 output:
+  pdf_document: default
   html_document:
     df_print: paged
-  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -193,4 +193,4 @@ for(i in 1:5) {
 
 ## Further Conclusions
   
-The additional analysis for Response #3 illustrate which demographics feel their vote doesn't matter. Generally speaking, there was little variation across demographics, with one notable exception: While older voters (70 and older) tend to vote more often than younger ones, they are also the ones who feel their vote doesn't matter. While this inverse relationship is somewhat surprising, the fact that there was little variation among the other demographics is perhaps even more surprising. For example, my expectation was that minorities and females would comprise a greater percentage of voters who feel disengranchised, given the demographic of most elected politicians. Instead, there was little variation among races and genders, which indicates to me that people, in general, feel their vote doesn't matter, regardless of demographic. In a time when there seems to be little to unify us, perhaps we can console ourselves by being united by our disillusionment.
+The additional analysis for Response #3 illustrates which demographics feel their vote doesn't matter. Generally speaking, there was little variation across demographics, with one notable exception: While older voters (70 and older) tend to vote more often than younger ones, they are also the ones who feel their vote doesn't matter. While this inverse relationship is somewhat surprising, the fact that there was little variation among the other demographics is perhaps even more surprising. For example, my expectation was that minorities and females would comprise a greater percentage of voters who feel disenfranchised, given the demographic of most elected politicians. Instead, there was little variation among races and genders, which leads me to believe that people, in general, feel their vote doesn't matter, regardless of demographic. In a time when there seems to be little to unify us, perhaps our general sense of disillusionment is one way (albeit a depressing one!) in which we can consider ourselves united.
