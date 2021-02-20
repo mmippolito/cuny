@@ -1,0 +1,153 @@
+---
+title: "DATA607 - Assignment 3"
+author: "Michael Ippolito"
+date: "2/19/2021"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+# Init
+knitr::opts_chunk$set(echo = TRUE)
+options(dplyr.summarise.inform = FALSE)
+library(tidyverse)
+library(knitr)
+library(RCurl)
+```
+  
+**1. Using the 173 majors listed in fivethirtyeight.com’s College Majors dataset [https://fivethirtyeight.com/features/the-economic-guide-to-picking-a-college-major/], provide code that identifies the majors that contain either "DATA" or "STATISTICS"**  
+  
+```{r problem_1}
+#original URL on fivethirtyeight,com:
+#https://raw.githubusercontent.com/fivethirtyeight/data/master/college-majors/majors-list.csv
+majors_csv <- getURL("https://raw.githubusercontent.com/mmippolito/cuny/main/data607/assignment3/majors-list.csv")
+majors <- read.csv(text = majors_csv)
+majors_subset <- str_subset(majors$Major, "(DATA|STATISTICS)")
+majors_subset
+```
+  
+  
+**2 Write code that transforms the data below:**  
+  
+[1] "bell pepper"  "bilberry"     "blackberry"   "blood orange"
+  
+[5] "blueberry"    "cantaloupe"   "chili pepper" "cloudberry"  
+  
+[9] "elderberry"   "lime"         "lychee"       "mulberry"    
+  
+[13] "olive"        "salal berry"
+  
+Into a format like this:
+  
+c("bell pepper", "bilberry", "blackberry", "blood orange", "blueberry", "cantaloupe", "chili pepper", "cloudberry", "elderberry", "lime", "lychee", "mulberry", "olive", "salal berry")
+  
+```{r problem_2}
+raw_string <- '
+[1] "bell pepper"  "bilberry"     "blackberry"   "blood orange"
+  
+[5] "blueberry"    "cantaloupe"   "chili pepper" "cloudberry"  
+  
+[9] "elderberry"   "lime"         "lychee"       "mulberry"    
+  
+[13] "olive"        "salal berry"
+'
+matches <- str_match_all(raw_string, '"(.+?)"\\s+')
+vectored_list <- matches[[1]][,2]
+vectored_list
+```
+  
+  
+**3 Describe, in words, what these expressions will match:**  
+  
+* (.)\\1\\1  
+  
+Any three characters in a row, e.g. AA  
+
+```{r problem3_1}
+
+s <- "abcAAAabc"
+str_extract(s, "(.)\\1\\1")
+
+```
+  
+* "(.)(.)\\\\2\\\\1"  
+  
+A four-character palindrome, e.g ABBA  
+
+```{r problem3_2}
+
+s <- "abcABBAabc"
+str_extract(s, "(.)(.)\\2\\1")
+
+```
+  
+* (..)\\1  
+  
+A set of two repeating characters, e.g. ABAB  
+
+```{r problem3_3}
+
+s <- "abcABABabc"
+str_extract(s, "(..)\\1")
+
+```
+
+* "(.).\\\\1.\\\\1"  
+  
+The same character repeated three times, separated by any other character in between, e.g. AxAyA  
+  
+```{r problem3_4}
+
+s <- "abcAxAyAabc"
+str_extract(s, "(.).\\1.\\1")
+
+```
+
+* "(.)(.)(.).*\\\\3\\\\2\\\\1"  
+  
+A six-character palindrome separated in the middle by any number of characters, e.g. ABCxyzCBA  
+  
+```{r problem3_5}
+
+s <- "abcABCxyzCBAabc"
+str_extract(s, "(.)(.)(.).*\\3\\2\\1")
+
+```
+
+  
+**4 Construct regular expressions to match words that:**  
+  
+* Start and end with the same character.  
+
+^(.).*\\1$  
+
+```{r problem4_1}
+
+s <- "AasdfasdfA"
+str_extract(s, "^(.).*\\1$")
+
+```
+
+* Contain a repeated pair of letters (e.g. "church" contains "ch" repeated twice.)  
+
+([A-Za-z]{2}).*\\1  
+
+```{r problem4_2}
+
+s <- "church"
+str_extract(s, "([A-Za-z]{2}).*\\1")
+
+```
+
+* Contain one letter repeated in at least three places (e.g. "eleven" contains three "e"s.)  
+
+([A-Za-z]).*\\1.*\\1  
+  
+```{r problem4_3}
+
+s <- "eleven"
+str_extract(s, "([A-Za-z]).*\\1.*\\1")
+
+```
