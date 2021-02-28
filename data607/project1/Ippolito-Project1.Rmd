@@ -1,0 +1,259 @@
+---
+title: "DATA607 - Project 1"
+author: "Michael Ippolito"
+date: "2/21/2021"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    toc_float: true
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+# Init
+knitr::opts_chunk$set(echo = TRUE)
+options(dplyr.summarise.inform = FALSE)
+library(tidyverse)
+library(knitr)
+library(RCurl)
+library(stringr)
+```
+
+### Problem Statement
+
+Create an R markdown file that converts a structured text file into a .csv, containing the following:
+
+\ \ \ \ \ \ Player’s Name\
+\ \ \ \ \ \ Player’s State\
+\ \ \ \ \ \ Total Number of Points\
+\ \ \ \ \ \ Player’s Pre-Rating\
+\ \ \ \ \ \ Average Pre-Chess Rating of Opponents\
+
+For the first player, the line should read:\
+
+\ \ \ \ \ \ Gary Hua, ON, 6.0, 1794, 1605\
+
+### Download\
+\
+Download the raw text file from Github.\
+\
+```{r get_txt_file}
+
+# Download the tournament .txt file from Github
+txtfile <- getURL("https://raw.githubusercontent.com/mmippolito/cuny/main/data607/project1/tournamentinfo.txt")
+
+```
+
+### Extract\
+\
+Extract each player (2 lines). The raw data will look like this:\
+\
+<font style="font-family: courier; font-size:10pt;">
+\ \ \ \ 1\ |\ GARY\ HUA\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ |6.0\ \ |W\ \ 39|W\ \ 21|W\ \ 18|W\ \ 14|W\ \ \ 7|D\ \ 12|D\ \ \ 4|\
+\ \ \ ON\ |\ 15445895\ /\ R:\ 1794\ \ \ ->1817\ \ \ \ \ |N:2\ \ |W\ \ \ \ |B\ \ \ \ |W\ \ \ \ |B\ \ \ \ |W\ \ \ \ |B\ \ \ \ |W\ \ \ \ |\
+</font>
+\
+```{r extract_players}
+
+# Create a regex to get each player line by line. The lines will look like this:
+#
+#    1 | GARY HUA                        |6.0  |W  39|W  21|W  18|W  14|W   7|D  12|D   4|
+#   ON | 15445895 / R: 1794   ->1817     |N:2  |W    |B    |W    |B    |W    |B    |W    |
+#
+# Sometimes there could be a bye or a half-bye instead of a win/lose/draw, like this: |B   |
+# And sometimes there is a provisional rating after a player's pre-performance rating, e.g. 12531685 / R: 1291P12->1259P17
+#
+re <- " +(\\d+) \\| ([A-Z\\- ]+) +\\|([\\d\\.]+) +\\|(([A-Z] +(\\d+)?\\|){7}) *[\\r\\n]+"
+re <- str_c(re, " +([A-Z]{2}) +\\| +\\d+ \\/ R: +(\\d+)[P ].+[\\r\\n]+")
+matches <- str_match_all(string = txtfile, pattern = re)
+
+```
+
+### Walk Matches\
+\
+Walk through each match, which will be an array of values, like this:\
+\
+<font style="font-family: courier; font-size:10pt;">
+\ \ \ \ \ \ [,2]\ [,3]\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [,4]\ \ [,5]\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ [,6]\ \ \ \ \ [,7]\ [,8]\ [,9]\ \ \
+\ [1,]\ "1"\ \ "GARY\ HUA\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "\ "6.0"\ "W\ \ 39|W\ \ 21|W\ \ 18|W\ \ 14|W\ \ \ 7|D\ \ 12|D\ \ \ 4|"\ "D\ \ \ 4|"\ "4"\ \ "ON"\ "1794"\
+\ [2,]\ "2"\ \ "DAKSHESH\ DARURI\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "\ "6.0"\ "W\ \ 63|W\ \ 58|L\ \ \ 4|W\ \ 17|W\ \ 16|W\ \ 20|W\ \ \ 7|"\ "W\ \ \ 7|"\ "7"\ \ "MI"\ "1553"\
+\ [3,]\ "3"\ \ "ADITYA\ BAJAJ\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "\ "6.0"\ "L\ \ \ 8|W\ \ 61|W\ \ 25|W\ \ 21|W\ \ 11|W\ \ 13|W\ \ 12|"\ "W\ \ 12|"\ "12"\ "MI"\ "1384"\
+</font>
+\
+Further parsing is needed on the "opponent" field. Each line will look like this:\
+\
+<font style="font-family: courier; font-size:10pt;">
+W\ \ 39|W\ \ 21|W\ \ 18|W\ \ 14|W\ \ \ 7|D\ \ 12|D\ \ \ 4|\
+</font>
+\
+and this code will make it look like a vector:\
+\
+<font style="font-family: courier; font-size:10pt;">
+[1]\ "39"\ "21"\ "18"\ "14"\ "7"\ \ "12"\ "4"\ \
+</font>
+\
+```{r parse}
+
+# Player IDs
+ids <- as.integer(matches[[1]][,2])
+
+# Strip whitespace from player name and change to title case
+players <- str_to_title(str_trim(string = matches[[1]][,3]))
+
+# Points
+pts <- as.numeric(matches[[1]][,4])
+
+# States
+states <- matches[[1]][,8]
+
+# Pre-performance rating
+preperf <- as.integer(matches[[1]][,9])
+
+# Further parse match results; each line will look like this:
+# W  39|W  21|W  18|W  14|W   7|D  12|D   4|
+tmp_opp <- str_match_all(string = matches[[1]][,5], pattern = "([A-Z]) +(\\d+)?\\|")
+
+# Create an array of 7 lists of opponent IDs and 7 opponent results (Win/Lose/Draw/Bye/Half-bye)
+# For the opp_result, choose the [i + 7]th element, since we'll choose the second column of 7 (elements 8 to 14)
+# For the opponent ids, choose the [i + 14]th element, since we'll choose the third column of 7 (elements 15 to 21)
+results <- list(7)
+opponents <- list(7)
+scores <- list(7)
+for(i in 1:7) {
+  results[[i]] <- (sapply(tmp_opp, "[[", i + 7))
+  opponents[[i]] <- as.integer(sapply(tmp_opp, "[[", i + 14))
+  scores[[i]] <- case_when(
+    results[[i]] == "W" ~ 1,
+    results[[i]] == "D" ~ 0.5,
+    results[[i]] == "L" ~ 0,
+    results[[i]] == "B" ~ 1,
+    results[[i]] == "H" ~ 0.5,
+    results[[i]] == "U" ~ 0,
+    results[[i]] == "X" ~ 1,
+    results[[i]] == "F" ~ 0
+  )
+}
+```
+
+### Create Dataframe\
+\
+Now that all the variables are populated, create a dataframe out of them.\
+\
+```{r create_dataframe}
+
+# Create main dataframe from variables
+df <- data.frame(id = ids, player = players, state = states, pts = pts, prerating = preperf, 
+                 opp = opponents, opp_result = results, score = scores)
+
+# Rename opponent columns (opponent's player id, result against that opponent, and score against that opponent)
+for(i in 1:7) {
+  names(df)[i + 5] <- str_c("opp", i)
+  names(df)[i + 12] <- str_c("result", i)
+  names(df)[i + 19] <- str_c("score", i)
+}
+
+# Show the first few lines of the dataframe
+df[1:10]
+```
+
+### Calculate Ratings\
+\
+With the dataframe created and populated with variables, now comes the real excitement. That's right: calculating the mean of each player's opponents' pre-tournament rating.\
+\
+```{r calc_ratings}
+
+# Create a slimmed-down data frame with only player ID and prerating
+dfslim <- select(df, id, prerating)
+
+# Make a copy of the original data frame, only selecting player ID and the opponents he/she played against
+dftmp <- df %>% select(id, starts_with("opp"))
+
+# Join the slim data frame against each opponent to populate that player's pre-tournament rating
+dftmp <- dftmp %>% merge(y = dfslim, by.x = "opp1", by.y = "id", all.x = TRUE) %>% rename(prerating_opp1 = prerating) %>%
+  merge(y = dfslim, by.x = "opp2", by.y = "id", all.x = TRUE) %>% rename(prerating_opp2 = prerating) %>%
+  merge(y = dfslim, by.x = "opp3", by.y = "id", all.x = TRUE) %>% rename(prerating_opp3 = prerating) %>%
+  merge(y = dfslim, by.x = "opp4", by.y = "id", all.x = TRUE) %>% rename(prerating_opp4 = prerating) %>%
+  merge(y = dfslim, by.x = "opp5", by.y = "id", all.x = TRUE) %>% rename(prerating_opp5 = prerating) %>%
+  merge(y = dfslim, by.x = "opp6", by.y = "id", all.x = TRUE) %>% rename(prerating_opp6 = prerating) %>%
+  merge(y = dfslim, by.x = "opp7", by.y = "id", all.x = TRUE) %>% rename(prerating_opp7 = prerating) %>%
+  arrange(id) %>% select(id, starts_with("prerating_"))
+
+# Compute pre-tournament average
+dftmp <- dftmp %>% mutate(opp_prerating_avg = as.integer(rowMeans(subset(dftmp, select = 
+  c(prerating_opp1, prerating_opp2, prerating_opp3, prerating_opp4, 
+    prerating_opp5, prerating_opp6, prerating_opp7)), na.rm = TRUE))) %>%
+  select(id, opp_prerating_avg)
+
+# Join the new dataframe that includes the prerating average back to the original data frame
+dfnew <- df %>% merge(y = dftmp, by = "id")
+
+# Show the first few rows and columns of the new dataframe
+dfnew %>% select(player, state, pts, prerating, opp_prerating_avg)
+
+```
+
+### Export\
+\
+Export the transformed data frame to CSV.\
+\
+```{r export}
+
+# Export to CSV
+dfnew %>% select(player, state, pts, prerating, opp_prerating_avg) %>%
+  write.csv("project1-out.csv", quote = FALSE, row.names = FALSE)
+
+```
+
+### ELO\
+\
+Calculate the player's expected score $E_1$ as follows:\
+\
+\begin{aligned}
+    E_1 &= 10^{r_1/400}\ /\ (10^{r_1/400} + 10^{r_2/400}) \\
+\end{aligned}
+\
+where $E_1$ is Player 1's expected score, $r_1$ is Player 1's pretournament rating, and $r_2$ is the average of his opponents' pretournament ratings.\
+\
+Then we'll calculate each player's actual score as follows:\
+\
+\begin{aligned}
+  W &= win &= 1\ pt \\
+  D &= draw &= 0.5\ pt \\
+  L &= loss &= 0\ pt \\
+  B &= full-point\ bye &= 1\ pt \\
+  H &= half-point\ bye &= 0.5\ pt \\
+  U &= unplayed\ (zero-point\ bye) &= 0\ pt \\
+  X &= win\ by\ forfeit &= 1\ pt \\
+  F &= loss\ by\ forfeit &= 0\ pt \\
+\end{aligned}
+\
+
+```{r elo}
+
+# Calculate expected score = 7 * expected score using avg pretournament ratings of opponents
+dfnew <- dfnew %>% mutate(exp_score = 7 * (10^(prerating / 400)) / (10^(prerating / 400) + 10^(opp_prerating_avg / 400)))
+
+# Calculate actual score based on actual matches - this should exactly match the "pts" column
+dfnew <- dfnew %>% mutate(actual_score = score1 + score2 + score3 + score4 + score5 + score6 + score7)
+dfnew %>% select(player, state, pts, exp_score, actual_score)
+```
+
+### Analysis\
+\
+Evaluate which players did the best in the tournament, comparing actual score against expected score.\
+\
+```{r analysis}
+
+# Calculate difference between actual and expected scores
+dfnew <- dfnew %>% mutate(score_diff = (pts - exp_score))
+
+# Display the top ten performers
+top_performers <- dfnew %>% select(player, state, pts, exp_score, score_diff) %>%
+  arrange(desc(score_diff))
+top_performers[1:10,]
+```
+\
+As shown, Aditya Bajaj of Michigan was the player who most exceeded expectations.\
+
+...
