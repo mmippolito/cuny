@@ -289,7 +289,8 @@ Extract each player (2 lines). The raw data will look like this:<br />
 #   ON | 15445895 / R: 1794   -&gt;1817     |N:2  |W    |B    |W    |B    |W    |B    |W    |
 #
 # Sometimes there could be a bye or a half-bye instead of a win/lose/draw, like this: |B   |
-# And sometimes there is a provisional rating after a player&#39;s pre-performance rating, e.g. 12531685 / R: 1291P12-&gt;1259P17
+# And sometimes there is a provisional rating after a player&#39;s pre-performance rating, 
+# e.g. 12531685 / R: 1291P12-&gt;1259P17
 #
 re &lt;- &quot; +(\\d+) \\| ([A-Z\\- ]+) +\\|([\\d\\.]+) +\\|(([A-Z] +(\\d+)?\\|){7}) *[\\r\\n]+&quot;
 re &lt;- str_c(re, &quot; +([A-Z]{2}) +\\| +\\d+ \\/ R: +(\\d+)[P ].+[\\r\\n]+&quot;)
@@ -334,9 +335,11 @@ preperf &lt;- as.integer(matches[[1]][,9])
 # W  39|W  21|W  18|W  14|W   7|D  12|D   4|
 tmp_opp &lt;- str_match_all(string = matches[[1]][,5], pattern = &quot;([A-Z]) +(\\d+)?\\|&quot;)
 
-# Create an array of 7 lists of opponent IDs and 7 opponent results (Win/Lose/Draw/Bye/Half-bye)
-# For the opp_result, choose the [i + 7]th element, since we&#39;ll choose the second column of 7 (elements 8 to 14)
-# For the opponent ids, choose the [i + 14]th element, since we&#39;ll choose the third column of 7 (elements 15 to 21)
+# Create an array of 7 lists of opponent IDs and 7 opponent results (Win/Lose/Draw/Bye/Half-bye).
+# For the opp_result, choose the [i + 7]th element, 
+# since we&#39;ll choose the second column of 7 (elements 8 to 14).
+# For the opponent ids, choose the [i + 14]th element, 
+# since we&#39;ll choose the third column of 7 (elements 15 to 21).
 results &lt;- list(7)
 opponents &lt;- list(7)
 scores &lt;- list(7)
@@ -366,7 +369,8 @@ Now that all the variables are populated, create a dataframe out of them.<br />
 df &lt;- data.frame(id = ids, player = players, state = states, pts = pts, prerating = preperf, 
                  opp = opponents, opp_result = results, score = scores)
 
-# Rename opponent columns (opponent&#39;s player id, result against that opponent, and score against that opponent)
+# Rename opponent columns (opponent&#39;s player id, result against that opponent, 
+# and score against that opponent)
 for(i in 1:7) {
   names(df)[i + 5] &lt;- str_c(&quot;opp&quot;, i)
   names(df)[i + 12] &lt;- str_c(&quot;result&quot;, i)
@@ -391,7 +395,8 @@ With the dataframe created and populated with variables, now comes the real exci
 <pre class="r"><code># Create a slimmed-down data frame with only player ID and prerating
 dfslim &lt;- select(df, id, prerating)
 
-# Make a copy of the original data frame, only selecting player ID and the opponents he/she played against
+# Make a copy of the original data frame, only selecting player ID and the 
+# opponents he/she played against
 dftmp &lt;- df %&gt;% select(id, starts_with(&quot;opp&quot;))
 
 # Join the slim data frame against each opponent to populate that player&#39;s pre-tournament rating
@@ -461,10 +466,12 @@ Then we’ll calculate each player’s actual score as follows:<br />
 <p><br />
 </p>
 <pre class="r"><code># Calculate expected score = 7 * expected score using avg pretournament ratings of opponents
-dfnew &lt;- dfnew %&gt;% mutate(exp_score = 7 * (10^(prerating / 400)) / (10^(prerating / 400) + 10^(opp_prerating_avg / 400)))
+dfnew &lt;- dfnew %&gt;% mutate(exp_score = 7 * (10^(prerating / 400)) / 
+                            (10^(prerating / 400) + 10^(opp_prerating_avg / 400)))
 
 # Calculate actual score based on actual matches - this should exactly match the &quot;pts&quot; column
-dfnew &lt;- dfnew %&gt;% mutate(actual_score = score1 + score2 + score3 + score4 + score5 + score6 + score7)
+dfnew &lt;- dfnew %&gt;% mutate(actual_score = score1 + score2 + score3 + 
+                            score4 + score5 + score6 + score7)
 dfnew %&gt;% select(player, state, pts, exp_score, actual_score)</code></pre>
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
