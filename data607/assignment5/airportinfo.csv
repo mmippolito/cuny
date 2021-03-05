@@ -1,4 +1,4 @@
-city,passengers served (2013),avg annual cloudy days (1961-1990),avg annual foggy days (1961-1990),avg annual rainy days (1981-2010),avg inches annual rainfall (1981-2010)
+city,passengers,cloudy,foggy,rainy,precip
 San Francisco,44944201,105,108,68,20.7
 Seattle,34824281,226,165,149,37.7
 Los Angeles,66702252,103,92,36,12.8
