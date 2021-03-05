@@ -1,6 +1,6 @@
-city,passengers served (2013),avg annual cloudy days (1961-1990),avg annual foggy days (1961-1990)
-San Francisco,44944201,105,108
-Seattle,34824281,226,165
-Los Angeles,66702252,103,92
-San Diego,18767530,102,97
-Phoenix,40318451,70,7
+city,passengers served (2013),avg annual cloudy days (1961-1990),avg annual foggy days (1961-1990),avg annual rainy days (1981-2010),avg inches annual rainfall (1981-2010)
+San Francisco,44944201,105,108,68,20.7
+Seattle,34824281,226,165,149,37.7
+Los Angeles,66702252,103,92,36,12.8
+San Diego,18767530,102,97,42,10.3
+Phoenix,40318451,70,7,30,8.2
