@@ -46,6 +46,7 @@ fhin.close()
 
 # Open the main CSV output file.
 fhcsv = open(mainCsvFile, "w")
+fhcsv.write("agent_id,name,link,agency,genres,authors\n")
 print("-------------")
 print("Parsing main output")
 
@@ -150,6 +151,7 @@ for linkId in linkDict.keys():
 
 # Open the output csv
 fhout = open(agencyCsvFile, "w")
+fhout.write("agent_fk,address,ext_addr,locality,region,postal,phone,web,email,twitter,elec_sub,guidelines,tips\n")
 
 # Open each agency page's html output and parse it.
 print("-------------")
