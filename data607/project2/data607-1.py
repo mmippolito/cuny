@@ -112,6 +112,8 @@ for agentElement in agentArray:
 
 	# Output to main csv.
 	outLine = agentId + "," + agentName + "," + agentLink + "," + agentAgency + "," + agentGenres + "," + agentAuthors
+	outLine = remove_control_chars(outLine)						#remove non-printing characters
+	outLine = re.sub('&amp;', '&', outLine)						#replace ampersands
 
 	# Check for commas in any of the output fields, which would get in my kitchen.
 	if "," in agentId or "," in agentName or "," in agentLink or "," in agentAgency or "," in agentGenres or "," in agentAuthors:
