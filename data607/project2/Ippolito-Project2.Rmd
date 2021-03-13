@@ -30,8 +30,8 @@ library(rvest)
 Discussion posts chosen for this project:\
 \
 1. My own: literary agents from pw.org\
-2. Brad: New York voter registration from elections.ny.gov\
-3. Daniel: epidemics listing from wikipedia.org\
+2. Brad's: New York voter registration from elections.ny.gov\
+3. Daniel's: epidemics listing from wikipedia.org\
 \
 In each of these cases, the following steps are performed:\
 ***Figure 1.** Overview flowchart*
@@ -364,7 +364,7 @@ nydf %>% mutate(period = str_c(year, ' ', ifelse(month == 2, 'Feb', 'Nov'))) %>%
   filter(`2021 Feb` != 0) %>%
   ggplot(aes(x = reorder(short_party, -pct_change), y = pct_change)) + 
   geom_bar(stat = 'identity', fill = 'lightblue') +
-  ggtitle("Figure 3. Party registration percent change between Nov 2019 and Feb 2021<br>\n(exluding 'other' party and parties not present in Feb 2021)") + xlab("Party") + theme_light() + geom_text(aes(label = round(pct_change, 1)), vjust = 1.5)
+  ggtitle("Figure 3. Party registration percent change between Nov 2019 and Feb 2021\n(exluding 'other' party and parties not present in Feb 2021)") + xlab("Party") + theme_light() + geom_text(aes(label = round(pct_change, 1)), vjust = 1.5)
   
 
 ```
@@ -384,13 +384,13 @@ tmpdf <- nydf %>% mutate(period = str_c(year, ' ', ifelse(month == 2, 'Feb', 'No
 # top 20
 tmpdf %>% head(20) %>%
   ggplot(aes(x = reorder(county, pct_change), y = pct_change)) + geom_bar(stat = 'identity', fill = 'lightblue') +
-  ggtitle("Figure 3. The 20 counties seeing the most growth in registrations<br>\nbetween Nov 2019 and Feb 2021") +
+  ggtitle("Figure 3. The 20 counties seeing the most growth in registrations\nbetween Nov 2019 and Feb 2021") +
   coord_flip() + xlab("County") + theme_light() + geom_text(aes(label = round(pct_change, 1)), hjust = 1.2)
 
 # bottom 20
 tmpdf %>% tail(20) %>%
   ggplot(aes(x = reorder(county, pct_change), y = pct_change)) + geom_bar(stat = 'identity', fill = 'lightblue') +
-  ggtitle("Figure 4. The 20 counties seeing the least growth in registrations<br>\nbetween Nov 2019 and Feb 2021") +
+  ggtitle("Figure 4. The 20 counties seeing the least growth in registrations\nbetween Nov 2019 and Feb 2021") +
   coord_flip() + xlab("County") + theme_light() + geom_text(aes(label = round(pct_change, 1)), hjust = 1.2)
 
 ```
