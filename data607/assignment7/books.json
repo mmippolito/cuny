@@ -1,0 +1,49 @@
+{
+	"books": [
+		{
+			"book": {
+				"id": "book01",
+				"authors": [
+					{
+						"author": "Carlos Baker"
+					}
+				],
+				"title": "Ernest Hemingway: A Life Story",
+				"publish_year": 1969,
+				"pages": 697,
+				"notable_feature": "Often characterized as the definitive Hemingway biography."
+			}
+		},
+		{
+			"book": {
+				"id": "book02",
+				"authors": [
+					{
+						"author": "Nancy R. Comley"
+					},
+					{
+						"author": "Robert Scholes"
+					}
+				],
+				"title": "Hemingway's Genders: Rereading the Hemingway Text",
+				"publish_year": 1996,
+				"pages": 168,
+				"notable_feature": "Attempts to dispel the notion that Hemingway's works were abjectly heterosexual and masculine and without any nuance in terms of sexuality."
+			}
+		},
+		{
+			"book": {
+				"id": "book03",
+				"authors": [
+					{
+						"author": "Kenneth S. Lynn"
+					}
+				],
+				"title": "Hemingway",
+				"publish_year": 1995,
+				"pages": 712,
+				"notable_feature": "Reveals the troubled life of a man previously portrayed as stolidness."
+			}
+		}
+	]
+}
