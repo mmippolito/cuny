@@ -1,19 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <books>
-	<book id="book01">
+	<book>
+		<id>book01</id>
 		<title>Ernest Hemingway: A Life Story</title>
 		<publish_year>1969</publish_year>
 		<pages>697</pages>
 		<notable_feature>Often characterized as the definitive Hemingway biography.</notable_feature>
 	</book>
-	<book id="book02">
+	<book>
 		<id>book02</id>
 		<title>Hemingway's Genders: Rereading the Hemingway Text</title>
 		<publish_year>1996</publish_year>
 		<pages>168</pages>
 		<notable_feature>Attempts to dispel the notion that Hemingway's works were abjectly heterosexual and masculine and without any nuance in terms of sexuality.</notable_feature>
 	</book>
-	<book id="book03">
+	<book>
 		<id>book03</id>
 		<title>Hemingway</title>
 		<publish_year>1995</publish_year>
