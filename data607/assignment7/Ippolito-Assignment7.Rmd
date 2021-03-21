@@ -1,0 +1,158 @@
+---
+title: "DATA607 - Assignment 7"
+author: "Michael Ippolito"
+date: "3/20/2021"
+output:
+  html_document:
+    df_print: paged
+    toc: false
+    toc_float: true
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+# Init
+knitr::opts_chunk$set(echo = TRUE)
+options(dplyr.summarise.inform = FALSE)
+library(tidyverse)
+library(knitr)
+library(RCurl)
+library(kableExtra)
+library(rvest)
+library(RJSONIO)
+library(XML)
+```
+
+## Assignment 7 {.tabset}
+
+### Overview
+
+The assignment was to do the following:
+
+1. Create files in HTML, JSON, and XML formats containing various attributes about three books.
+2. Parse the files into separate R dataframes.
+3. Compare the results.
+
+### Approach
+
+My approach will be as follows:
+
+* Create each file by hand and store in my Github repo.
+* Load the file into R using an appropriate parser.
+* Wrangle the data into a common format.
+* Compare the resultant data frames.
+
+### HTML
+
+```{r htnl}
+
+##########
+# html
+##########
+
+# Read books.html
+books_html <- read_html("https://raw.githubusercontent.com/mmippolito/cuny/main/data607/assignment7/books.html", encoding = "UTF-8")
+df_html <- html_table(books_html, fill = TRUE)[[1]]
+
+```
+
+### JSON
+
+```{r json}
+
+##########
+# json
+##########
+
+# Read books.json
+rawjson <- fromJSON("https://raw.githubusercontent.com/mmippolito/cuny/main/data607/assignment7/books.json", simplifyVector = TRUE)
+
+# Extract variable names from json, remove pagemap since it's a nested list that we don't care about
+vars <- names(rawjson[["books"]][[1]][["book"]])
+
+# Create data frame
+df_json <- data.frame(matrix(ncol = 6, nrow = 3))
+colnames(df_json) <- vars
+
+# Extract each book as a separate elemnt
+tmpbook <- lapply(rawjson[["books"]], "[[", "book")
+
+# Walk each variable, assigning each one to a column of the empty data frame
+for (v in vars) {
+  
+  # Extract this column to a temporary variable
+  tmpelement <- sapply(tmpbook, "[[", v)
+  
+  # If this element is a list, collapse it into a single value
+  if (typeof(tmpelement) == "list") {
+    df_json[v] <- sapply(tmpelement, paste, collapse = ", ")
+  }
+  else {
+    df_json[v] <- tmpelement
+  }
+}
+
+```
+
+### XML
+
+```{r xml}
+
+##########
+# xml
+##########
+
+# Retrieve and read xml doc
+rawxml <- getURL("https://raw.githubusercontent.com/mmippolito/cuny/main/data607/assignment7/books.xml")
+
+# Parse the xml doc
+xmldoc <- xmlParse(rawxml)
+
+# Do an in initial pass to convert to a data frame; the authors column will require further handling
+df_xml <- xmlToDataFrame(nodes = getNodeSet(xmldoc, "//book"))
+
+# Handle authors, since there can be multiple authors; first convert the whole xml doc to a list
+tmplist <- xmlToList(xmldoc, "//book")
+
+# Extract each book into a separate list
+tmpbook <- lapply(rawjson[["books"]], "[[", "book")
+
+# Extract the authors field into its own list
+tmpauth <- sapply(tmpbook, "[[", "authors")
+
+# Collapse the authors field into a vector and add it to the data frame
+df_xml[v] <- sapply(tmpauth, paste, collapse = ", ")
+
+```
+
+### Data frames
+
+```{r dataframes}
+
+# html
+kable(df_html, caption = 
+  "<i><font color=#000000><b>Table 1.</b> Data frame from HTML document</font></i>") %>% 
+  kable_styling(latex_options = "striped")
+
+# json
+kable(df_html, caption = 
+  "<i><font color=#000000><b>Table 2.</b> Data frame from JSON document</font></i>") %>% 
+  kable_styling(latex_options = "striped")
+
+# xml
+kable(df_html, caption = 
+  "<i><font color=#000000><b>Table 3.</b> Data frame from XML document</font></i>") %>% 
+  kable_styling(latex_options = "striped")
+
+
+```
+
+### Conclusion
+
+There were some differences in how the parsers initially imported the data. This was mainly due to the fact that the authors field could contain multiple values. This required more wrangling for the code that parsed the JSON and XML files.
+
+* The HTML parser was the easiest to work with, as it imported the data "as is." This was largely due to the liberty I had when creating the HTML table, especially with how I decided to handle the multiple-author case.
+* For the JSON file, I first extracted each book from the raw JSON. Then I looped over each column, extracting it to a vector and adding it columnwise to the data frame. Special handling was required if the JSON element contained a list (as was the case with the authors element). In this case, I chose to collapse the list using a separator.
+* The procedure to convert the XML document was similar to that of the JSON file, except that it was easier to initially parse the entire file into a data frame, which populated all the columns correctly except for authors. For authors, I collapsed the field into a single vector, then overwrote that column of the data frame.
+
+The end result was three identical data frames having the same format.
