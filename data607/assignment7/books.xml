@@ -1,9 +1,6 @@
 <?xml version="1.0"?>
 <books>
 	<book id="book01">
-		<authors>
-			<author id="author01">Carlos Baker</author>
-		</authors>
 		<title>Ernest Hemingway: A Life Story</title>
 		<publish_year>1969</publish_year>
 		<pages>697</pages>
@@ -11,10 +8,6 @@
 	</book>
 	<book id="book02">
 		<id>book02</id>
-		<authors>
-			<author id="author01">Nancy R. Comley</author>
-			<author id="author02">Robert Scholes</author>
-		</authors>
 		<title>Hemingway's Genders: Rereading the Hemingway Text</title>
 		<publish_year>1996</publish_year>
 		<pages>168</pages>
@@ -22,9 +15,6 @@
 	</book>
 	<book id="book03">
 		<id>book03</id>
-		<authors>
-			<author id="author01">Kenneth S. Lynn</author>
-		</authors>
 		<title>Hemingway</title>
 		<publish_year>1995</publish_year>
 		<pages>712</pages>
