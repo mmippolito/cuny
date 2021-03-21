@@ -182,7 +182,7 @@ pre code {
 <p>The assignment was to do the following:</p>
 <ol style="list-style-type: decimal">
 <li>Create files in HTML, JSON, and XML formats containing various attributes about three books.</li>
-<li>Parse the files into separate R dataframes.</li>
+<li>Parse the files into separate R data frames.</li>
 <li>Compare the results.</li>
 </ol>
 </div>
@@ -193,6 +193,7 @@ pre code {
 <li>Create each file by hand and store in my Github repo.</li>
 <li>Load the file into R using an appropriate parser.</li>
 <li>Wrangle the data into a common format.</li>
+<li>Verify the data frames are equivalent.</li>
 <li>Compare the resultant data frames.</li>
 </ul>
 </div>
@@ -549,6 +550,105 @@ Reveals the troubled life of a man previously portrayed as stolidness.
 </tbody>
 </table>
 </div>
+<div id="verfication" class="section level3">
+<h3>Verfication</h3>
+<pre class="r"><code># Compare, using the html data frame as the basis for comparison
+vars = colnames(df_html)
+for (v in vars) {
+  
+  # Convert each variable into a vector
+  m_html &lt;- as.matrix(df_html[v])
+  m_json &lt;- as.matrix(df_json[v])
+  m_xml &lt;- as.matrix(df_json[v])
+
+  # Walk each element in this vector, using the html vector as a basis
+  print(paste(&quot;Comparing variable &quot;, v))
+  for (i in 1:length(m_html)) {
+    
+    # Print row #
+    print(paste(&quot;    Row #&quot;, i))
+    
+    # Compare the html vector to the corresponding json vector
+    if (m_html[i] == m_json[i]) {
+      msg &lt;- &quot;equivalent&quot;
+    }
+    else {
+      msg &lt;- &quot;WARNING! NOT EQUIVALENT!&quot;
+    }
+    print(paste(&quot;        HTML -&gt; JSON: &quot;, msg))
+
+    # Compare the html vector to the corresponding xml vector
+    if (m_html[i] == m_xml[i]) {
+      msg &lt;- &quot;equivalent&quot;
+    }
+    else {
+      msg &lt;- &quot;WARNING! NOT EQUIVALENT!&quot;
+    }
+    print(paste(&quot;        HTML -&gt; XML: &quot;, msg))
+
+  }
+}</code></pre>
+<pre><code>## [1] &quot;Comparing variable  id&quot;
+## [1] &quot;    Row # 1&quot;
+## [1] &quot;        HTML -&gt; JSON:  equivalent&quot;
+## [1] &quot;        HTML -&gt; XML:  equivalent&quot;
+## [1] &quot;    Row # 2&quot;
+## [1] &quot;        HTML -&gt; JSON:  equivalent&quot;
+## [1] &quot;        HTML -&gt; XML:  equivalent&quot;
+## [1] &quot;    Row # 3&quot;
+## [1] &quot;        HTML -&gt; JSON:  equivalent&quot;
+## [1] &quot;        HTML -&gt; XML:  equivalent&quot;
+## [1] &quot;Comparing variable  authors&quot;
+## [1] &quot;    Row # 1&quot;
+## [1] &quot;        HTML -&gt; JSON:  equivalent&quot;
+## [1] &quot;        HTML -&gt; XML:  equivalent&quot;
+## [1] &quot;    Row # 2&quot;
+## [1] &quot;        HTML -&gt; JSON:  equivalent&quot;
+## [1] &quot;        HTML -&gt; XML:  equivalent&quot;
+## [1] &quot;    Row # 3&quot;
+## [1] &quot;        HTML -&gt; JSON:  equivalent&quot;
+## [1] &quot;        HTML -&gt; XML:  equivalent&quot;
+## [1] &quot;Comparing variable  title&quot;
+## [1] &quot;    Row # 1&quot;
+## [1] &quot;        HTML -&gt; JSON:  equivalent&quot;
+## [1] &quot;        HTML -&gt; XML:  equivalent&quot;
+## [1] &quot;    Row # 2&quot;
+## [1] &quot;        HTML -&gt; JSON:  equivalent&quot;
+## [1] &quot;        HTML -&gt; XML:  equivalent&quot;
+## [1] &quot;    Row # 3&quot;
+## [1] &quot;        HTML -&gt; JSON:  equivalent&quot;
+## [1] &quot;        HTML -&gt; XML:  equivalent&quot;
+## [1] &quot;Comparing variable  publish_year&quot;
+## [1] &quot;    Row # 1&quot;
+## [1] &quot;        HTML -&gt; JSON:  equivalent&quot;
+## [1] &quot;        HTML -&gt; XML:  equivalent&quot;
+## [1] &quot;    Row # 2&quot;
+## [1] &quot;        HTML -&gt; JSON:  equivalent&quot;
+## [1] &quot;        HTML -&gt; XML:  equivalent&quot;
+## [1] &quot;    Row # 3&quot;
+## [1] &quot;        HTML -&gt; JSON:  equivalent&quot;
+## [1] &quot;        HTML -&gt; XML:  equivalent&quot;
+## [1] &quot;Comparing variable  pages&quot;
+## [1] &quot;    Row # 1&quot;
+## [1] &quot;        HTML -&gt; JSON:  equivalent&quot;
+## [1] &quot;        HTML -&gt; XML:  equivalent&quot;
+## [1] &quot;    Row # 2&quot;
+## [1] &quot;        HTML -&gt; JSON:  equivalent&quot;
+## [1] &quot;        HTML -&gt; XML:  equivalent&quot;
+## [1] &quot;    Row # 3&quot;
+## [1] &quot;        HTML -&gt; JSON:  equivalent&quot;
+## [1] &quot;        HTML -&gt; XML:  equivalent&quot;
+## [1] &quot;Comparing variable  notable_feature&quot;
+## [1] &quot;    Row # 1&quot;
+## [1] &quot;        HTML -&gt; JSON:  equivalent&quot;
+## [1] &quot;        HTML -&gt; XML:  equivalent&quot;
+## [1] &quot;    Row # 2&quot;
+## [1] &quot;        HTML -&gt; JSON:  equivalent&quot;
+## [1] &quot;        HTML -&gt; XML:  equivalent&quot;
+## [1] &quot;    Row # 3&quot;
+## [1] &quot;        HTML -&gt; JSON:  equivalent&quot;
+## [1] &quot;        HTML -&gt; XML:  equivalent&quot;</code></pre>
+</div>
 <div id="conclusion" class="section level3">
 <h3>Conclusion</h3>
 <p>There were some differences in how the parsers initially imported the data. This was mainly due to the fact that the authors field could contain multiple values. This required more wrangling for the code that parsed the JSON and XML files.</p>
@@ -557,7 +657,7 @@ Reveals the troubled life of a man previously portrayed as stolidness.
 <li>For the JSON file, I first extracted each book from the raw JSON. Then I looped over each column, extracting it to a vector and adding it columnwise to the data frame. Special handling was required if the JSON element contained a list (as was the case with the authors element). In this case, I chose to collapse the list using a separator.</li>
 <li>The procedure to convert the XML document was similar to that of the JSON file, except that it was easier to initially parse the entire file into a data frame, which populated all the columns correctly except for authors. For authors, I collapsed the field into a single vector, then overwrote that column of the data frame.</li>
 </ul>
-<p>The end result was three identical data frames having the same format.</p>
+<p>The end result was three identical data frames having the same format, verified to be identical programmatically.</p>
 </div>
 </div>
 

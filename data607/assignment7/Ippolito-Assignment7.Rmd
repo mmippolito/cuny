@@ -30,7 +30,7 @@ library(XML)
 The assignment was to do the following:
 
 1. Create files in HTML, JSON, and XML formats containing various attributes about three books.
-2. Parse the files into separate R dataframes.
+2. Parse the files into separate R data frames.
 3. Compare the results.
 
 ### Approach
@@ -40,6 +40,7 @@ My approach will be as follows:
 * Create each file by hand and store in my Github repo.
 * Load the file into R using an appropriate parser.
 * Wrangle the data into a common format.
+* Verify the data frames are equivalent.
 * Compare the resultant data frames.
 
 ### HTML
@@ -147,6 +148,49 @@ kable(df_html, caption =
 
 ```
 
+### Verfication
+
+```{r verify}
+
+# Compare, using the html data frame as the basis for comparison
+vars = colnames(df_html)
+for (v in vars) {
+  
+  # Convert each variable into a vector
+  m_html <- as.matrix(df_html[v])
+  m_json <- as.matrix(df_json[v])
+  m_xml <- as.matrix(df_json[v])
+
+  # Walk each element in this vector, using the html vector as a basis
+  print(paste("Comparing variable ", v))
+  for (i in 1:length(m_html)) {
+    
+    # Print row #
+    print(paste("    Row #", i))
+    
+    # Compare the html vector to the corresponding json vector
+    if (m_html[i] == m_json[i]) {
+      msg <- "equivalent"
+    }
+    else {
+      msg <- "WARNING! NOT EQUIVALENT!"
+    }
+    print(paste("        HTML -> JSON: ", msg))
+
+    # Compare the html vector to the corresponding xml vector
+    if (m_html[i] == m_xml[i]) {
+      msg <- "equivalent"
+    }
+    else {
+      msg <- "WARNING! NOT EQUIVALENT!"
+    }
+    print(paste("        HTML -> XML: ", msg))
+
+  }
+}
+
+```
+
 ### Conclusion
 
 There were some differences in how the parsers initially imported the data. This was mainly due to the fact that the authors field could contain multiple values. This required more wrangling for the code that parsed the JSON and XML files.
@@ -155,4 +199,4 @@ There were some differences in how the parsers initially imported the data. This
 * For the JSON file, I first extracted each book from the raw JSON. Then I looped over each column, extracting it to a vector and adding it columnwise to the data frame. Special handling was required if the JSON element contained a list (as was the case with the authors element). In this case, I chose to collapse the list using a separator.
 * The procedure to convert the XML document was similar to that of the JSON file, except that it was easier to initially parse the entire file into a data frame, which populated all the columns correctly except for authors. For authors, I collapsed the field into a single vector, then overwrote that column of the data frame.
 
-The end result was three identical data frames having the same format.
+The end result was three identical data frames having the same format, verified to be identical programmatically.
