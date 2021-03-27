@@ -1,0 +1,114 @@
+---
+title: "DATA607 - Tidyverse Assignment"
+author: "Michael Ippolito"
+date: "3/26/2021"
+output:
+  html_document:
+    df_print: paged
+    toc: false
+    toc_float: true
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+
+# Init
+knitr::opts_chunk$set(echo = TRUE)
+options(dplyr.summarise.inform = FALSE)
+library(tidyverse)
+library(knitr)
+
+```
+
+## Joins in Tidyverse {.tabset}
+
+### Overview
+
+These examples will demonstrate the use of Tidyverse inner and outer (left, right, full) joins. The dataset I used for the demonstration is a partial download of French deaths by département (state) for the year 2019 (https://www.kaggle.com/lperez/death-and-population-in-france-19902019).
+
+``` {r datasets}
+
+# Load the départements dataset, converting the département code to int
+df_dept <- read.csv("https://raw.githubusercontent.com/mmippolito/cuny/main/data607/tidyverse/departements.csv", sep = ';')
+df_dept$departement_code <- as.integer(df_dept$departement_code)
+head(df_dept)
+
+# Load the decedents dataset
+# For illustrative purposes, I filtered the table to only deaths of people
+# aged 103 or older and who died on 1/1/2019. This give us 8 rows:
+df_filt <- read.csv("https://raw.githubusercontent.com/mmippolito/cuny/main/data607/tidyverse/deces_2019_filt.csv", sep = ';')
+df_filt$departement_deces <- as.integer(df_filt$departement_deces)
+head(df_filt)
+
+```
+
+### Inner joins
+
+Inner joins only choose rows where the selected keyed field is equal in each table.
+
+```{r inner}
+
+# Join the filtered decedents table with the départements table:
+df_inner <- df_filt %>% 
+  inner_join(df_dept, by = c("departement_deces" = "departement_code"))
+df_inner
+
+```
+
+If there hadn't been a corresponding departement in the departements table, that row would have been ommitted in the resulting dataset. For example, after deliberately filter out the département de Meurthe-et-Moselle from the departements table; now only 7 rows are shown.
+
+```{r inner2}
+
+# Filter out one of the départements and run the join again:
+df_dept_filt <- df_dept %>% filter(departement != "Meurthe-et-Moselle")
+df_inner2 <- df_filt %>% 
+  inner_join(df_dept_filt, by = c("departement_deces" = "departement_code"))
+df_inner2
+
+```
+
+### Left outer joins
+
+Left outer joins choose all rows from the left-hand table and only the data from the right-hand table where the keyed field is equal.
+
+```{r left_outer}
+
+# Left join the filtered decedents table with the filtered départements table.
+# Note how all 8 rows of the left table (decedents) are present, but the first département
+# is missing (since we filtered it from the départements table).
+df_left <- df_filt %>% 
+  left_join(df_dept_filt, by = c("departement_deces" = "departement_code"))
+df_left
+
+```
+
+### Right outer joins
+
+Right outer joins choose all rows from the right-hand table and only the data from the left-hand table where the keyed field is equal.
+
+```{r right_outer}
+
+# Right join the filtered decedents table with the filtered départements table.
+# Now we have all rows from the départements table, but the decendent data is only
+# populated in the rows from the 8 rows in the decendents table.
+df_right <- df_filt %>% 
+  right_join(df_dept_filt, by = c("departement_deces" = "departement_code"))
+df_right
+
+```
+
+### Full outer joins
+
+Full outer joins choose all rows from both the left-hand and right-hand tables.
+
+```{r full_outer}
+
+# Full join the filtered decedents table with the filtered départements table.
+# Note how all 8 rows of the left table (decedents) are present, but the first département
+# is missing (since we filtered it from the départements table).
+# Note how even the row with the missing département is displayed.
+df_full <- df_filt %>% 
+  full_join(df_dept_filt, by = c("departement_deces" = "departement_code"))
+df_full
+
+```
