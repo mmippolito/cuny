@@ -1,0 +1,150 @@
+---
+title: "DATA607 - Assignment 9"
+author: "Michael Ippolito"
+date: "4/11/2021"
+output:
+  html_document:
+    df_print: paged
+    toc: false
+    toc_float: true
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+
+# Init
+knitr::opts_chunk$set(echo = TRUE)
+options(dplyr.summarise.inform = FALSE)
+library(tidyverse)
+library(knitr)
+library(RCurl)
+library(kableExtra)
+library(RJSONIO)
+library(getPass)
+
+```
+
+## Assignment 7 {.tabset}
+
+### Overview
+
+The assignment was to do the following:
+
+1. Sign up for an API key on the New York Times website.
+2. Build a procedure in R to read from the API.
+3. Store the data into an R data frame.
+
+
+### Approach
+
+My approach is follows:
+
+* Sign up for an API key, register a new application, and enable the Top Stories API.
+* Fetch the "world" top stories from the site using the API, storing it locally.
+* Read and parse the JSON file, tidying the data as necessary.
+* Store and display the data in a data frame.
+
+### Fetch data
+
+```{r fetch data}
+
+if (interactive()) {
+  api_key <- getPass("Enter API key:")
+} else {
+  api_key = readChar('api_key.txt', file.info('api_key.txt')$size)
+}
+
+# To prevent reading from the NYT site continuously, first see if the data has already been read
+if (!file.exists("nyt_world.json")) {
+  # Fetch JSON from NYT site
+  raw_json <- getURL(str_c("https://api.nytimes.com/svc/topstories/v2/world.json?api-key=", api_key))
+  write(raw_json, "nyt_world.json")
+}
+
+# Read from saved JSON
+rawjson <- fromJSON("nyt_world.json", simplifyVector = TRUE)
+
+# Extract column names
+vars <- names(rawjson[['results']][[1]])
+
+```
+
+### Main data frame
+
+```{r main_df}
+
+# Create main data frame
+df <- data.frame(matrix(ncol = length(vars), nrow = length(rawjson[['results']])))
+colnames(df) <- vars
+
+# Remove multimedia column; a separate child table will be created for this
+df <- df %>% select(-multimedia)
+
+# Create the id field as the primary key that will link the multimedia table
+df <- df %>% mutate(id = c(1:length(rawjson[['results']])))
+
+# Walk each variable, assigning each one to a column of the empty data frame
+for (v in vars) {
+
+  # Extract this column to a temporary variable
+  tmpelement <- sapply(rawjson[['results']], '[[', v)
+
+  # Handle different type of elements
+  if (v == "multimedia") {
+    # Handle mutlimedia separately
+  }
+  else if (typeof(tmpelement) == "list") {
+    #If this element is a list, collapse it into a single value
+    df[v] <- sapply(tmpelement, paste, collapse = "|")
+  }
+  else {
+    df[v] <- tmpelement
+  }
+
+}
+
+# Replace UTF-8 quote marks
+df$title <- str_replace_all(df$title, "â€™", "'")
+df$abstract <- str_replace_all(df$title, "â€™", "'")
+df$title <- str_replace_all(df$title, "â€˜", "'")
+df$abstract <- str_replace_all(df$title, "â€˜", "'")
+
+```
+
+### Multimedia data frame
+
+```{r mm_df}
+
+# Create mutlimedia data frame
+mmvars <- names(rawjson[['results']][[1]]['multimedia'][[1]][[1]])
+mmvars <- c('id', mmvars)
+df_mm = data.frame(matrix(vector(), 0, length(mmvars), dimnames = list(c(), mmvars)), stringsAsFactors=F)
+
+# Multimedia
+for (i in 1:length(rawjson[['results']])) {
+  for (j in 1:length(rawjson[['results']][[i]]['multimedia'][[1]])) {
+    dftmp = data.frame(rawjson[['results']][[i]]['multimedia'][[1]][j])
+    dftmp <- dftmp %>% mutate(id = i)
+    df_mm <- rbind(df_mm, dftmp)
+  }
+}
+    
+```
+
+### Display data frames
+
+```{r dataframes}
+
+# Display dataframes
+kable(df, caption = 
+  "<i><font color=#000000><b>Table 1.</b> Main data frame</font></i>") %>% 
+  kable_styling(latex_options = "striped")
+kable(df_mm, caption = 
+  "<i><font color=#000000><b>Table 2.</b> Multimedia data frame</font></i>") %>% 
+  kable_styling(latex_options = "striped")
+
+```
+
+### Conclusion
+
+This was a relatively straightforward process, except that manipulating lists of lists in R continues to confound me. There is probably a way of using lapply or sapply instead of the nested for loops above, but I gave up after about 4 hours of trying. The other small problem was that the unicode left-quote and right-quote characters appeared in some of the fields and had to be converted. An additional consideration was how to handle some of the data that arrived as lists of elements. I chose to create a child table for the multimedia data. But for the other data, I concatenated them into a single field, using pipes as separators.
