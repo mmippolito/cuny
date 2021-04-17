@@ -1,0 +1,739 @@
+---
+title: "DATA607 - Assignment 10"
+author: "Michael Ippolito"
+date: "4/15/2021"
+output:
+  html_document:
+    df_print: paged
+    toc: false
+    toc_float: true
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+
+# Init
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+knitr::opts_chunk$set(echo = TRUE)
+options(dplyr.summarise.inform = FALSE)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(tidytext)
+library(janeaustenr)
+library(tidyr)
+library(wordcloud)
+library(reshape2)
+
+```
+
+## Assignment 9 {.tabset}
+
+### Overview
+
+The assignment was as follows:
+
+1. Reproduce the example code in Chapter 2 of _Text Mining with R_ (Silge & Robinson, 2017).
+2. Extend the code by working with a different corpus of my choice.
+3. Incorporate at least one other sentiment analysis lexicon into the analysis.
+
+### Approach
+
+My approach is follows:
+
+1. Recreate the code from the text, thereby developing a basis for working the a different corpus.
+2. Since I'm in a writing group with seven other people, I have a readily available source of material to work with. First, I'll convert each MS Word file into a document. Each file is generally a chapter, although some contain chapter fragments, while others contain multiple shorter chapters. (We have a 4000-word-per-week submission limit for first drafts.) I'll call each file a "section" with the idea that each section is roughly equivalent to a chapter.
+3. Tokenize each document.
+4. Analyze each writer's work suing the sentiment analysis lexicon from the text.
+5. Repeat the process using Reddit's AskMen and AskWomen sentiment analysis lexicon.
+
+Please note: For obvious reasons, I didn't want to upload the unpublished works of the writers in my group, so the code won't actually run (by design).
+
+### Reproduce code
+
+This section reproduces the code from the textbook.
+
+Note: The following code was taken from Chapter 2 of _Text Mining with R_ (Silge & Robinson, 2017).
+
+```{r text}
+
+# Get sentiments
+head(sentiments)
+get_sentiments("afinn")
+get_sentiments("bing")
+get_sentiments("nrc")
+
+# Tokenize Jane Austen books
+tidy_books <- austen_books() %>%
+  group_by(book) %>%
+  mutate(linenumber = row_number(),
+         chapter = cumsum(str_detect(text, regex("^chapter [\\divxlc]",
+                                                 ignore_case = TRUE)))) %>%
+  ungroup() %>%
+  unnest_tokens(word, text)
+
+# Get NRC joy sentiments
+nrcjoy <- get_sentiments("nrc") %>%
+  filter(sentiment == "joy")
+
+# count number of "joyful" words in Emma
+tidy_books %>%
+  filter(book == "Emma") %>%
+  inner_join(nrcjoy) %>%
+  count(word, sort = TRUE)
+
+# Use Bing lexicon to count positive and negative sentiments
+janeaustensentiment <- tidy_books %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(book, index = linenumber %/% 80, sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment = positive - negative)
+
+# Plot sentiment over the course of the books
+ggplot(janeaustensentiment, aes(index, sentiment, fill = book)) +
+  geom_col(show.legend = F) +
+  facet_wrap(~book, ncol = 2, scales = "free_x")
+
+# Filter on Pride & Prejudice
+pride_prejudice <- tidy_books %>%
+  filter(book == "Pride & Prejudice")
+head(pride_prejudice, 10)
+
+# Sum sentiments by 80-line chunks of Pride & Prejudice
+afinn <- pride_prejudice %>%
+  inner_join(get_sentiments("afinn")) %>%
+  group_by(index = linenumber %/% 80) %>%
+  summarise(sentiment = sum(value)) %>%
+  mutate(method = "AFINN")
+
+# Do the same for Bing and NRC
+bing_and_nrc <- bind_rows(
+  pride_prejudice %>%
+    inner_join(get_sentiments("bing")) %>%
+    mutate(method = "Bing et al."),
+  pride_prejudice %>%
+    inner_join(get_sentiments("nrc") %>%
+                 filter(sentiment %in% c("positive", "negative"))) %>%
+    mutate(method = "NRC")) %>%
+  count(method, index = linenumber %/% 80, sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment = positive - negative)
+
+# Bind the data frames together and plot
+bind_rows(afinn, bing_and_nrc) %>%
+  ggplot(aes(index, sentiment, fill = method)) + 
+  geom_col(show.legend = F) + 
+  facet_wrap(~method, ncol = 1, scales = "free_y")
+
+# Investigate sentiment bias
+get_sentiments("nrc") %>%
+  filter(sentiment %in% c("positive", "negative")) %>%
+  count(sentiment)
+get_sentiments("bing") %>%
+  count(sentiment)
+
+# Look at most common positive and negative words
+bing_word_counts <- tidy_books %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = T) %>%
+  ungroup()
+bing_word_counts
+
+# Plot most common sentiments
+bing_word_counts %>%
+  group_by(sentiment) %>%
+  top_n(10) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n, fill = sentiment)) +
+  geom_col(show.legend = F) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(y = "Contribution to sentiment", x = NULL) +
+  coord_flip()
+
+# Customize stop words
+custom_stop_words <- bind_rows(tibble(word = c("miss"),
+                                          lexicon = c("custom")),
+                               stop_words)
+custom_stop_words
+
+# Word cloud
+tidy_books %>%
+  anti_join(stop_words) %>%
+  count(word) %>%
+  with(wordcloud(word, n, max.words = 100))
+
+# Comparison cloud
+tidy_books %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = T) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("gray20", "gray80"), max.words = 100)
+
+# Tokenize by sentence
+PandP_sentences <- data_frame(text = prideprejudice) %>%
+  unnest_tokens(sentence, text, token = "sentences")
+PandP_sentences$sentence[6]
+
+# Tokenize by chapter
+austen_chapters <- austen_books() %>%
+  group_by(book) %>%
+  unnest_tokens(chapter, text, token = "regex",
+                pattern = "Chapter|CHAPTER [\\dIVXLC]") %>%
+  ungroup()
+
+# Get chapter counts
+austen_chapters %>%
+  group_by(book) %>%
+  summarise(chapters = n())
+
+# Filter just Bing negative sentiments
+bingnegative <- get_sentiments("bing") %>%
+  filter(sentiment == "negative")
+
+# Word counts by chapter
+wordcounts <- tidy_books %>% 
+  group_by(book, chapter) %>%
+  summarise(words = n())
+
+# Find the chapters in each book with the highest negative work count
+tidy_books %>%
+  semi_join(bingnegative) %>%
+  group_by(book, chapter) %>%
+  summarise(negativewords = n()) %>%
+  left_join(wordcounts, by = c("book", "chapter")) %>%
+  mutate(ratio = negativewords/words) %>%
+  filter(chapter != 0) %>%
+  top_n(1) %>%
+  ungroup()
+
+```
+
+### Scrape data
+
+I wrote a python script to convert each writer's docx files into plain text. Then I iterated through each writer's directory, which contained folders for each book he or she has written. Each book's containing folder holds a series of sections, which roughly correspond to chapters. This code reads those text files into a data frame.
+
+```{r spwg1}
+
+# Prepare data frame
+spwg1 <- data.frame(matrix(vector(), 0, 4), stringsAsFactors=F)
+colnames(spwg1) <- c("writer", "book", "section", "text")
+
+# List each file in the main directory
+mainpath <- "/Users/ippolito/Documents/spwg"
+writers <- list.dirs(path = mainpath, full.names = F, recursive = F)
+for (writer in writers) {
+
+  # Get books in this writer's directory
+  #print(str_c(mainpath, "/", writer))
+  books <- list.dirs(path = str_c(mainpath, "/", writer), full.names = F, recursive = F)
+  for (book in books) {
+
+    # Read each section (each section is a text file)
+    print(str_c(mainpath, "/", writer, "/", book))
+    sections <- list.files(path = str_c(mainpath, "/", writer, "/", book), full.names = F, recursive = F)
+    for (fn in sections) {
+      
+      # Extract section number from file name (this will be the first number in the file name)
+      m <- str_extract_all(fn, '\\d+')
+      section = m[[1]][[1]]
+      #print(str_c("   ", mainpath, "/", writer, "/", book, "/", section))
+      
+      # Read the file into a single column
+      tmptxt <- read.delim(file = str_c(mainpath, "/", writer, "/", book, "/", fn), header = F, sep = '|')
+      tmpdf <- data.frame(tmptxt)
+      tmpdf <- tmpdf %>%
+        rename(text = V1) %>%
+        mutate(writer = writer, book = book, section = section)
+      spwg1 <- rbind(spwg1, tmpdf)
+    }
+  }
+}
+
+# Convert section to numeric and sort
+spwg1 <- spwg1 %>%
+  mutate(section = as.numeric(section)) %>%
+  arrange(writer, book, section)
+
+```
+
+### Tokenize
+
+Tokenize the books and count the number of "joyful" words.
+
+```{r spwg2}
+
+# Tokenize books; I removed the logic that created chapter numbers, since
+# my data already has a "section" number, which is approximately equivalent to chapter.
+spwg_tidy <- spwg1 %>%
+  group_by(book) %>%
+  mutate(linenumber = row_number()) %>%
+  ungroup() %>%
+  unnest_tokens(word, text)
+
+# count number of "joyful" words in one of my books, "Spin" (there shouldn't be many!)
+head(spwg_tidy %>%
+  filter(book == "Spin") %>%
+  inner_join(nrcjoy) %>%
+  count(word, sort = TRUE), 10)
+
+```
+
+### Sentiment trajectory
+
+Plot the trajectory of sentiment over the course of each book.
+
+```{r spwg3}
+
+# Use Bing lexicon to count positive and negative sentiments
+spwgsentiment <- spwg_tidy %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(writer, book, index = linenumber %/% 80, sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment = positive - negative)
+
+# Plot sentiment over the course of the books
+
+# First the women's books
+spwgsentiment %>%
+  filter(writer == 'danielle' | writer == 'gail' | writer == 'jennifer' | writer == 'tammy') %>%
+  ggplot(aes(index, sentiment, fill = book)) +
+  geom_col(show.legend = F) +
+  facet_wrap(~book, ncol = 2, scales = "free_y")
+
+# Then the men's
+spwgsentiment %>%
+  filter(writer == 'kyle' | writer == 'dennis' | writer == 'mike' | writer == 'michael') %>%
+  ggplot(aes(index, sentiment, fill = book)) +
+  geom_col(show.legend = F) +
+  facet_wrap(~book, ncol = 2, scales = "free_y")
+
+```
+
+### Sentiment comparison
+
+Compare sentiment analyses by AFINN, Bing, and NRC.
+
+```{r spwg4}
+
+# Filter on one of the books, "MoE"
+MoE <- spwg_tidy %>%
+  filter(book == "MoE")
+MoE_text <- spwg1 %>%
+  filter(book == "MoE") %>%
+  select(text)
+MoE_text <- as.matrix(MoE_text)
+head(MoE_text, 5)
+
+# Sum sentiments by 80-line chunks of MoE
+afinn_spwg <- MoE %>%
+  inner_join(get_sentiments("afinn")) %>%
+  group_by(index = linenumber %/% 80) %>%
+  summarise(sentiment = sum(value)) %>%
+  mutate(method = "AFINN")
+
+# Do the same for Bing and NRC
+bing_and_nrc_spwg <- bind_rows(
+  MoE %>%
+    inner_join(get_sentiments("bing")) %>%
+    mutate(method = "Bing et al."),
+  MoE %>%
+    inner_join(get_sentiments("nrc") %>%
+                 filter(sentiment %in% c("positive", "negative"))) %>%
+    mutate(method = "NRC")) %>%
+  count(method, index = linenumber %/% 80, sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment = positive - negative)
+
+# Bind the data frames together and plot
+bind_rows(afinn_spwg, bing_and_nrc_spwg) %>%
+  ggplot(aes(index, sentiment, fill = method)) + 
+  geom_col(show.legend = F) + 
+  facet_wrap(~method, ncol = 1, scales = "free_y")
+
+# Investigate sentiment bias
+get_sentiments("nrc") %>%
+  filter(sentiment %in% c("positive", "negative")) %>%
+  count(sentiment)
+get_sentiments("bing") %>%
+  count(sentiment)
+
+```
+
+### Most common words
+
+Look at the most common positive and negative words.
+
+```{r spwg5}
+
+# Look at most common positive and negative words
+bing_word_counts_spwg <- spwg_tidy %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = T) %>%
+  ungroup()
+head(bing_word_counts_spwg, 10)
+
+# Plot most common sentiments
+bing_word_counts_spwg %>%
+  group_by(sentiment) %>%
+  top_n(10) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n, fill = sentiment)) +
+  geom_col(show.legend = F) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(y = "Contribution to sentiment", x = NULL) +
+  coord_flip()
+
+# Customize stop words - add the word "like"
+custom_stop_words_spwg <- bind_rows(tibble(word = 
+    c("where", "than", "had", "into", "said", "i’m", "i’ve", "can’t", "don’t", "it’s", "i’ll", "isn’t", "didn’t", "he’s"),
+    lexicon = c("custom")),
+    stop_words)
+head(custom_stop_words_spwg, 10)
+
+# Word cloud
+spwg_tidy %>%
+  anti_join(custom_stop_words_spwg) %>%
+  count(word) %>%
+  with(wordcloud(word, n, max.words = 100))
+
+# Comparison cloud
+spwg_tidy %>%
+  anti_join(custom_stop_words_spwg) %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = T) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("gray20", "gray80"), max.words = 100)
+
+```
+
+### Tokenize by sentence
+
+Tokenize one of the books, MoE, by sentence.
+
+```{r spwg6}
+
+# Tokenize MoE by sentence, print an example sentence
+PandP_sentences_spwg <- data_frame(text = MoE_text) %>%
+  unnest_tokens(sentence, text, token = "sentences")
+PandP_sentences_spwg$sentence[[23]]
+
+# Tokenize by section ()
+spwg_sections <- data.frame()
+spwg_sections <- spwg1 %>%
+  group_by(writer, book, section) %>%
+  summarize(section = paste0(text, collapse = '')) %>%
+  ungroup()
+
+# Get section counts
+spwg_sections %>%
+  group_by(writer, book) %>%
+  summarise(sections = n())
+
+```
+
+### Most negative sections
+
+Find the most negative sections in each book.
+
+```{r spwg7}
+
+# Filter just Bing negative sentiments
+bingnegative <- get_sentiments("bing") %>%
+  filter(sentiment == "negative")
+
+# Word counts by section
+wordcounts_spwg <- spwg_tidy %>% 
+  group_by(book, section) %>%
+  summarise(words = n())
+
+# Find the chapters in each book with the highest negative work count
+spwg_tidy %>%
+  semi_join(bingnegative) %>%
+  group_by(book, section) %>%
+  summarise(negativewords = n()) %>%
+  left_join(wordcounts_spwg, by = c("book", "section")) %>%
+  mutate(ratio = negativewords/words) %>%
+  top_n(1) %>%
+  ungroup()
+
+```
+
+### AskMen/AskWomen analysis
+
+Perform sentiment anlysis using sentiment lexicons collected by Standford University using various Reddit.com subcommunities. I chose the AskMen and AskWomen lexicons to see if there is a difference between how men and women might evalutate our novels.
+
+Note: AskMen and AskWomen sentiment lexicons are from Hamilton et. al., https://nlp.stanford.edu/projects/socialsent/.
+
+```{r ask1}
+
+# Read AskMen sentiment lexicon
+askmen <- read.delim("AskMen.tsv", header = F)
+askmen <- askmen %>%
+  mutate(value = V2 + V3) %>%
+  rename(word = V1) %>%
+  mutate(sentiment = ifelse(value < 0, "negative", "positive")) %>%
+  select(word, value, sentiment) %>%
+  mutate(rank = min_rank(value))
+
+# Read AskWomen sentiment lexicon
+askwomen <- read.delim("AskWomen.tsv", header = F)
+askwomen <- askwomen %>%
+  mutate(value = V2 + V3) %>%
+  rename(word = V1) %>%
+  mutate(sentiment = ifelse(value < 0, "negative", "positive")) %>%
+  select(word, value, sentiment) %>%
+  mutate(rank = min_rank(value))
+
+# Out of sheer morbid curiosity, see how we rank each other (and ourselves) 
+askmen %>% filter(word == "men" | word == "women") %>%
+  mutate(lexicon = "AskMen") %>%
+  union_all(askwomen %>% 
+              filter(word == "men" | word == "women") %>%
+              mutate(lexicon = "AskWomen")) %>%
+  arrange(value) %>%
+  select(lexicon, word, sentiment, value, rank)
+
+```
+
+### Sentiment trajectory
+
+Use the AskMen/AskWomen lexicons to plot sentiment trajectory over the course of each book. Since there were an overwhelming number of positive words, I tried to normalize things by subtracting the mean value from the sentiment in each plot. As shown, there isn't much difference between how men would rank the books compare to the women.
+
+```{r ask2}
+
+# Use Bing lexicon to count positive and negative sentiments,
+# once for AskMen, once for AskWomen
+spwgsentiment_men <- spwg_tidy %>%
+  inner_join(askmen) %>%
+  count(writer, book, index = linenumber %/% 80, sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment = positive - negative)
+spwgsentiment_women <- spwg_tidy %>%
+  inner_join(askwomen) %>%
+  count(writer, book, index = linenumber %/% 80, sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment = positive - negative)
+
+# The first round of plots showed all positive results;
+# taking a look why:
+askmen %>%
+  group_by(sentiment) %>%
+  summarize(n())
+askwomen %>%
+  group_by(sentiment) %>%
+  summarize(n())
+
+# Use the means instead of straight positive and negative
+mean_askmen <- mean(spwgsentiment_men$sentiment)
+mean_askwomen <- mean(spwgsentiment_women$sentiment)
+
+# Plot sentiment over the course of the books - AskMen analysis on the women's books
+spwgsentiment_men %>%
+  filter(writer == 'danielle' | writer == 'gail' | writer == 'jennifer' | writer == 'tammy') %>%
+  ggplot(aes(index, sentiment - mean_askmen, fill = book)) +
+  geom_col(show.legend = F) +
+  facet_wrap(~book, ncol = 2, scales = "free_y") +
+  ggtitle("Women's books - AskMen analaysis")
+# Plot sentiment over the course of the books - AskWomen analysis on the women's books
+spwgsentiment_women %>%
+  filter(writer == 'danielle' | writer == 'gail' | writer == 'jennifer' | writer == 'tammy') %>%
+  ggplot(aes(index, sentiment - mean_askwomen, fill = book)) +
+  geom_col(show.legend = F) +
+  facet_wrap(~book, ncol = 2, scales = "free_y") +
+  ggtitle("Women's books - AskWomen analaysis")
+
+# Plot sentiment over the course of the books - AskMen analysis on the men's books
+spwgsentiment_men %>%
+  filter(writer == 'kyle' | writer == 'dennis' | writer == 'mike' | writer == 'michael') %>%
+  ggplot(aes(index, sentiment - mean_askmen, fill = book)) +
+  geom_col(show.legend = F) +
+  facet_wrap(~book, ncol = 2, scales = "free_y") +
+  ggtitle("Men's books - AskMen analaysis")
+
+# Plot sentiment over the course of the books - Askwomen analysis on the men's books
+spwgsentiment_women %>%
+  filter(writer == 'kyle' | writer == 'dennis' | writer == 'mike' | writer == 'michael') %>%
+  ggplot(aes(index, sentiment - mean_askwomen, fill = book)) +
+  geom_col(show.legend = F) +
+  facet_wrap(~book, ncol = 2, scales = "free_y") +
+  ggtitle("Men's books - AskWomen analaysis")
+
+
+```
+
+### Sentiment comparison
+
+```{r ask3}
+
+# Filter on one of the books, "MoE"
+MoE <- spwg_tidy %>%
+  filter(book == "MoE")
+MoE_text <- spwg1 %>%
+  filter(book == "MoE") %>%
+  select(text)
+MoE_text <- as.matrix(MoE_text)
+head(MoE_text, 5)
+
+# Sum AskMen sentiments by 80-line chunks of MoE
+moe_askmen <- MoE %>%
+  inner_join(askmen) %>%
+  group_by(index = linenumber %/% 80) %>%
+  summarise(sentiment = sum(value)) %>%
+  mutate(method = "AskMen")
+
+# Do the same for AskWomen
+moe_askwomen <- MoE %>%
+  inner_join(askwomen) %>%
+  group_by(index = linenumber %/% 80) %>%
+  summarise(sentiment = sum(value)) %>%
+  mutate(method = "AskWomen")
+
+# Find mean
+mean_moe <- mean(bind_rows(moe_askmen, moe_askwomen)$sentiment)
+
+# Bind the data frames together
+bind_rows(moe_askmen, moe_askwomen) %>%
+  ggplot(aes(index, sentiment - mean_moe, fill = method)) + 
+  geom_col(show.legend = F) + 
+  facet_wrap(~method, ncol = 1, scales = "free_y")
+
+```
+
+### Most common words
+
+Look at the most common positive and negative words.
+
+```{r ask4}
+
+# Look at most common positive and negative words - AskMen
+askmen_word_counts <- spwg_tidy %>%
+  inner_join(askmen) %>%
+  count(word, sentiment, sort = T) %>%
+  ungroup()
+head(askmen_word_counts, 10)
+
+# Plot most common sentiments - AskMen
+askmen_word_counts %>%
+  group_by(sentiment) %>%
+  top_n(10) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n, fill = sentiment)) +
+  geom_col(show.legend = F) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(y = "Contribution to sentiment - AskMen", x = NULL) +
+  coord_flip()
+
+# Look at most common positive and negative words - AskWomen
+askwomen_word_counts <- spwg_tidy %>%
+  inner_join(askwomen) %>%
+  count(word, sentiment, sort = T) %>%
+  ungroup()
+head(askwomen_word_counts, 10)
+
+# Plot most common sentiments - AskWomen
+askwomen_word_counts %>%
+  group_by(sentiment) %>%
+  top_n(10) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n, fill = sentiment)) +
+  geom_col(show.legend = F) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(y = "Contribution to sentiment - AskWomen", x = NULL) +
+  coord_flip()
+
+# Customize stop words - add the word "like"
+custom_stop_words_spwg <- bind_rows(tibble(word = 
+    c("where", "than", "had", "into", "said", "i’m", "i’ve", "can’t", "don’t", "it’s", "i’ll", "isn’t", "didn’t", "he’s"),
+    lexicon = c("custom")),
+    stop_words)
+head(custom_stop_words_spwg, 10)
+
+# Word cloud
+spwg_tidy %>%
+  anti_join(custom_stop_words_spwg) %>%
+  count(word) %>% 
+  with(wordcloud(word, n, max.words = 75))
+
+# Comparison cloud - AskMen
+spwg_tidy %>%
+  inner_join(askmen) %>%
+  anti_join(custom_stop_words_spwg) %>%
+  count(word, sentiment, sort = T) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("gray20", "gray80"), max.words = 75)
+
+# Comparison cloud - AskWomen
+spwg_tidy %>%
+  inner_join(askwomen) %>%
+  anti_join(custom_stop_words_spwg) %>%
+  count(word, sentiment, sort = T) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("gray20", "gray80"), max.words = 75)
+
+```
+
+### Most negative sections
+
+Find the most negative sections in each book.
+
+```{r ask5}
+
+# Filter just negative sentiments
+askmen_negative <- askmen %>%
+  filter(sentiment == "negative")
+askwomen_negative <- askwomen %>%
+  filter(sentiment == "negative")
+
+# Word counts by section
+wordcounts_spwg <- spwg_tidy %>% 
+  group_by(book, section) %>%
+  summarise(words = n())
+
+# Find the chapters in each book with the highest negative work count - AskMen
+most_neg_askmen <- spwg_tidy %>%
+  semi_join(askmen_negative) %>%
+  group_by(book, section) %>%
+  summarise(negativewords = n()) %>%
+  left_join(wordcounts_spwg, by = c("book", "section")) %>%
+  mutate(ratio = negativewords/words) %>%
+  top_n(1) %>%
+  ungroup() %>%
+  mutate(lexicon = "AskMen")
+
+# Find the chapters in each book with the highest negative work count - AskWomen
+most_neg_askwomen <- spwg_tidy %>%
+  semi_join(askwomen_negative) %>%
+  group_by(book, section) %>%
+  summarise(negativewords = n()) %>%
+  left_join(wordcounts_spwg, by = c("book", "section")) %>%
+  mutate(ratio = negativewords/words) %>%
+  top_n(1) %>%
+  ungroup() %>%
+  mutate(lexicon = "AskWomen")
+
+# Display differences
+diff <- most_neg_askmen %>%
+  inner_join(most_neg_askwomen, by = c("book")) %>%
+  mutate(different = ifelse(section.x == section.y, "no", "yes")) %>%
+  rename(section_AskMen = section.x, section_AskWomen = section.y) %>%
+  select(book, different, section_AskMen, section_AskWomen)
+diff
+
+# Count differences
+diff %>% filter(different == "yes") %>% count()
+
+```
+
+### Conclusion
+
+The following are the most notable conclusions:
+
+* First, there was an overall bias toward negativity in my group's books compared with Jane Austen's.
+* While Jane Austen's books tend to start positively, get darker near the end, and resolve positively, the books in my group appeared to remain negative throughout much of the books but then lose some negativity toward the end.
+* "Hard" and "dark" are the most common negative words used in my writer's group's books, while "like" and "smile" are the most positive.
+* During the course of the AskMen/AskWomen analysis, it was noted that there was an extreme bias toward the positive. Therefore, I subtracted the mean sentiment score before plotting the results. This makes it easier to see the difference in positivity in the figures.
+* From the AskMen/AskWomen analysis, the most notable finding was that the lexicons differed on ten of the eighteen books (the majority), indicating a significant difference in how men and women rate sentiment.
