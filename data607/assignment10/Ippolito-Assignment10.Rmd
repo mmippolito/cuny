@@ -303,7 +303,7 @@ spwgsentiment %>%
 
 # Then the men's
 spwgsentiment %>%
-  filter(writer == 'kyle' | writer == 'dennis' | writer == 'mike' | writer == 'michael') %>%
+  filter(writer == 'kyle' | writer == 'dennis' | writer == 'mike' | writer == 'michael' | writer == 'tim') %>%
   ggplot(aes(index, sentiment, fill = book)) +
   geom_col(show.legend = F) +
   facet_wrap(~book, ncol = 2, scales = "free_y")
@@ -546,7 +546,7 @@ spwgsentiment_women %>%
 
 # Plot sentiment over the course of the books - AskMen analysis on the men's books
 spwgsentiment_men %>%
-  filter(writer == 'kyle' | writer == 'dennis' | writer == 'mike' | writer == 'michael') %>%
+  filter(writer == 'kyle' | writer == 'dennis' | writer == 'mike' | writer == 'michael' | writer == 'tim') %>%
   ggplot(aes(index, sentiment - mean_askmen, fill = book)) +
   geom_col(show.legend = F) +
   facet_wrap(~book, ncol = 2, scales = "free_y") +
@@ -554,7 +554,7 @@ spwgsentiment_men %>%
 
 # Plot sentiment over the course of the books - Askwomen analysis on the men's books
 spwgsentiment_women %>%
-  filter(writer == 'kyle' | writer == 'dennis' | writer == 'mike' | writer == 'michael') %>%
+  filter(writer == 'kyle' | writer == 'dennis' | writer == 'mike' | writer == 'michael' | writer == 'tim') %>%
   ggplot(aes(index, sentiment - mean_askwomen, fill = book)) +
   geom_col(show.legend = F) +
   facet_wrap(~book, ncol = 2, scales = "free_y") +
