@@ -1,0 +1,34 @@
+sonuus G2M V3 Universal Guitar-to-MIDI Converter	1	$79.00	$79.00	guitar
+AKG D112 MKII Dynamic Bass Drum Microphone with Integrated Mount	1	$199.00	$199.00	drum
+Rode M5 Matched Pair Compact Condenser Microphones	1	$199.00	$199.00	studio
+Shure SM81 Small-diaphragm Condenser Microphone	1	$349.00	$349.00	studio
+Shure SM58S Cardioid Dynamic Vocal Microphone with On/Off Switch	1	$104.00	$104.00	studio
+Shure Beta 56A Supercardioid Dynamic Snare / Tom Microphone	1	$159.00	$159.00	drum
+Behringer U-Phoria UMC204HD USB Audio Interface	1	$128.99	$128.99	studio
+Pro Co EG-20 Excellines Instrument Cable - 20' Straight-Straight	2	$17.99	$35.98	studio
+Remo Emperor Black Suede Drumhead - 14"	1	$16.99	$16.99	drum
+Remo Emperor Black Suede Drumhead - 12"	1	$15.99	$15.99	drum
+Remo Emperor Black Suede Drumhead - 13"	1	$23.99	$23.99	drum
+Remo Emperor Black Suede Drumhead - 16"	1	$18.95	$18.95	drum
+Gibson Accessories Les Paul Studio Pickguard - Black	1	$29.99	$29.99	guitar
+Audio-Technica ATH-M20x Closed-back Monitoring Headphones	1	$49.00	$49.00	studio
+Pro Co BP-20 Excellines Balanced Patch Cable - 20'	1	$25.99	$25.99	studio
+Hosa YPP-136 Stereo Breakout 1/4 TRSF to Dual 1/4 TS - 6	2	$5.70	$11.40	studio
+Vic Firth American Classic Drumsticks With Vic Grip - 5A - Wood Tip	1	$11.49	$11.49	drum
+Behringer U-Phoria UMC22 USB Audio Interface	1	$58.99	$58.99	studio
+Shure SM57 Cardioid Dynamic Instrument Microphone	1	$99.00	$99.00	studio
+D'Addario Planet Waves PW-CMIC-10 Classic Series Microphone Cable - 10'	1	$9.49	$9.49	studio
+On-Stage Stands MS7701B Tripod Microphone Stand - Black	1	$24.95	$24.95	studio
+Pro Co EGSS-15 Excellines Instrument Cable - 15'	1	$17.99	$17.99	studio
+D'Addario EJ11 Light 80/20 Bronze Acoustic Strings - .012-.053	1	$3.89	$3.89	guitar
+D'Addario PW-P047E 1/4" Male Stereo to 1/8" Female Stereo Adapter	1	$6.99	$6.99	studio
+On-Stage Stands KSA7500 Universal 2nd Tier	1	$46.95	$46.95	studio
+Dunlop Egg Shaker - (2-pack)	1	$3.59	$3.59	drum
+Pro Co EXM-30 Excellines Microphone Cable - 30'	2	$29.99	$59.98	studio
+On-Stage Stands MS7701B Euro Boom Microphone Stand - Black	1	$29.95	$29.95	studio
+PDP 800 Series Boom Cymbal Stand	1	$49.99	$49.99	drum
+MOTU MIDI Express XT 8x8 USB MIDI Interface	1	$349.00	$349.00	keyboard
+Roland RMIDI-B5-DUAL Black Series Dual MIDI Cable - 5'	2	$15.99	$31.98	keyboard
+Pigtronix Infinity Looper Pedal	1	$199.00	$199.00	guitar
+Remo Pinstripe Ebony Bass Drumhead - 22 inch	1	$52.33	$52.33	drum
+Remo Ambassador Ebony Bass Drumhead - 22 inch	1	$44.99	$44.99	drum
