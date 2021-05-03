@@ -1,0 +1,443 @@
+---
+title: "DATA607 - Project 4"
+author: "Michael Ippolito"
+date: "4/24/2021"
+output:
+  html_document:
+    df_print: paged
+    toc: false
+    toc_float: true
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+
+# Init
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = TRUE)
+options(dplyr.summarise.inform = FALSE)
+library(tidyverse)
+library(tidytext)
+library(kableExtra)
+library(SnowballC)
+library(textstem)
+library(readtext)
+library(bayestestR)
+library(gridExtra)
+library(grid)
+library(wordcloud)
+
+```
+
+## Project 4 - Spam/Ham Classification {.tabset}
+
+### Overview
+
+The assignment was to use a set of email messages and build a classifier to separate them into spam or ham. I used a set of messages from Kaggle (Wessel van Lit, https://www.kaggle.com/veleon/ham-and-spam-dataset, 2019). I used a manual Bayesian model to gain a better understanding of how the process works, as opposed to simply feeding data into canned functions. My approach was as follows:
+
+1. Partition data into folds for training and holdout purposes.
+2. Read and tokenize the data.
+3. Clean up, normalize, and stem the terms, removing stopwords and terms common to both sets.
+4. Calculate TF and word probabilities on the training set.
+5. Calculate Bayesian probabilities on the holdout fold for each set.
+6. Evalute the performance of the model using the holdout set.
+7. Cross-validate by iterating over the remaining folds.
+8. Generate ROCs, cumulative response curves, and lift curves.
+9. Compare the results of each fold and select the best one.
+
+
+### Folds
+
+Create directory structure and split messages into five folds for training and holdout data.
+
+```{r folds}
+
+# Set parameters
+# Number of folds to partition the data into
+numfolds <- 5
+# Use the top [maxwords] occurrences to decrease runtime;
+# using every single tokenized word resulted in near-perfect models, which
+# was pretty supsect and not reasonable for practical use.
+maxwords <- 200
+
+# See if the dataset has been unzipped yet; if not, automatically unzip it.
+if (!dir.exists("hamnspam")) {
+  if (file.exists("kaggle_spam_ham.zip")) {
+  	print("Unzipping")
+    unzip("kaggle_spam_ham.zip", overwrite = T)
+  }
+}
+
+# Partiion into folds for training and holdout sets
+for (k in seq(-1, 1, 2)) {
+
+  # Set variable indicating if this is the "ham" loop or "spam loop"
+  hamorspam <- "ham"
+  if (k == 1) {
+    hamorspam <- "spam"
+  }
+  print(paste0("Partitioning ", hamorspam," directory"))
+
+  # Iterate over the number of folds
+  for (i in c(0:(numfolds - 1))) {
+
+    # Create the ham or spam folder if it doesn't exist
+    if (!dir.exists(paste0(hamorspam, "/", i))) {
+      dir.create(paste0(hamorspam, "/", i))
+    }
+  }
+
+  # Generate list of files and iterate through them, moving them into a different fold
+  tmpfiles <- list.files(path=hamorspam, full.names=F, recursive=F, include.dirs=F)
+  
+  ct <- 0
+  for (f in tmpfiles) {
+    fromfile <- paste0(hamorspam, "/", f)
+    tofile <- paste0(hamorspam, "/", as.character(ct %% numfolds), "/", f)
+    if (file.info(fromfile)$isdir) {
+      next
+    }
+    ct <- ct + 1
+    if (ct %% 100 == 0) {
+	    print(paste0("    moving file ", ct, " of ", length(tmpfiles), ": ", fromfile, " -> ", tofile))
+    }
+    file.rename(from = fromfile, to = tofile)
+  }
+
+}
+
+# Count total ham and spam
+print("Getting file counts")
+totalham <- 0
+totalspam <- 0
+for (k in seq(-1, 1, 2)) {
+
+    # Set variable indicating if this is the "ham" loop or "spam loop"
+    hamorspam <- "ham"
+    if (k == 1) {
+    hamorspam <- "spam"
+    }
+    tmpfiles <- list.files(path=hamorspam, full.names=F, recursive=T, include.dirs=F)
+    if(k == 1) {
+        totalspam <- length(tmpfiles)
+    } else {
+        totalham <- length(tmpfiles)
+    }
+}
+
+```
+
+
+### Tokenize
+
+Ingest the data and tokenize it into terms.
+
+```{r ingest}
+
+# To only use a balanced set, find the maximum number of each type (ham or spam) to choose
+maxset <- totalham
+if (totalspam < totalham) {
+	maxset <- totalspam
+}
+maxset <- maxset / numfolds
+
+# Iterate through each file in the specified fold
+processFold <- function(custom_stopwords, k, foldnum, holdoutflag, maxset) {
+
+  # Set variable indicating if this is the "ham" loop or "spam loop"
+  hamorspam <- "ham"
+  if (k == 1) {
+    hamorspam <- "spam"
+  }
+  print(paste0("    Fold #", foldnum, ", reading ", hamorspam," directory"))
+	
+  # Generate list of files and iterate through them, moving them into a different fold
+  current_path <- paste0(hamorspam, "/", foldnum)
+  tmpfiles <- list.files(path=current_path, full.names=F, recursive=F, include.dirs=F)
+
+  ctf <- 0	#file counter
+  for (f in tmpfiles) {
+  	
+  	# Exit as soon as we reach maxset to maintain a balanced sample set from each fold
+	if (ctf >= maxset) {
+		break
+	}
+
+   	# Increment counters
+  	ct <<- ct + 1
+  	ctf <- ctf + 1
+  	if (ct %% 100 == 0) {
+  		print(paste0("        reading file #", ct, ": ", current_path, "/", f))
+  	}
+
+ 		# Read file
+  	    filename <- paste0(current_path, "/", f)
+		txt <- readtext(filename, verbosity=0)
+
+		# Extract subject from header
+		header_end <- str_locate(txt, '\n\n')
+		m <- str_match(str_sub(txt, 1, header_end[1] - 1), 'Subject: *(.+?)\n')
+		subj <- m[2]
+
+		# Extract message body, discarding header
+		msgbody <- str_sub(txt, header_end[2] + 1)
+		
+		# Tokenize
+		dftmp <- data.frame(text = paste(subj, msgbody))
+		dftmp <- dftmp %>% unnest_tokens(word, text, token = "ngrams", n_min = 1, n = 1)
+
+		# Remove leading and trailing underscores
+		dftmp <- dftmp %>% mutate(word = str_replace(word, '^_+(.+)$', '\\1'))
+		dftmp <- dftmp %>% mutate(word = str_replace(word, '^(.+)_+$', '\\1'))
+
+		# Lemmatize words
+		dftmp <- dftmp %>% mutate(word = lemmatize_words(word))
+		
+		# Remove words with numbers
+		dftmp <- dftmp %>% filter(!grepl('\\d', word))
+		
+		# Remove all underscores
+		dftmp <- dftmp %>% filter(!grepl('^_+$', word))
+
+		# Remove stopwords
+		dftmp <- dftmp %>% anti_join(custom_stopwords, by = c("word"))
+
+		# TF
+		dftmp <- dftmp %>% count(word, sort = F) %>%
+			rename(tf = n)
+
+		# Add doc_id, spam fields, and holdout fields
+		dftmp <- dftmp %>% mutate(doc_id = f, spam = k, fold = foldnum)
+		
+		# Bind to main data frame
+		df <<- bind_rows(df, dftmp)
+
+  }  # for each file
+
+}
+
+# Load standard stop_words and read in custom stop_words from file
+data(stop_words)
+custom_stopwords <- read.delim("custom_stopwords.txt", sep = '\n', header = F) %>%
+	rename(word = V1) %>% mutate(lexicon = "custom")
+custom_stopwords <- bind_rows(custom_stopwords, stop_words)
+
+# Create main data frame
+df <- data.frame(matrix(vector(), 0, 5), stringsAsFactors=F)
+colnames(df) <- c("doc_id", "word", "tf", "spam", "fold")
+
+# Seed the tables to set the variable types
+df <- df %>% mutate(doc_id = "text", word = "text", tf = 0, spam = 0, fold = 0)
+
+# Do this twice - once for ham, once for spam
+ct <- 0
+for (k in seq(-1, 1, 2)) {
+
+  # Iterate over folds
+  for (foldnum in c(0:(numfolds-1))) {
+
+  	  # Read and tokenize files
+	  processFold(custom_stopwords, k, foldnum, 0, maxset)
+
+  }  # for each fold
+
+}  # once for ham, once for ham
+
+```
+
+
+### Training
+
+Train the model by iterating over the folds, reserving a holdout fold each iteration.
+
+```{r train}
+
+# Iterate over training folds
+dfscores <- NULL
+for (holdoutfold in c((numfolds-1):0)) {
+	print(paste0("Set holdout fold to ", holdoutfold))
+
+	# Get total number of docs by ham or spam, along with the probabilities of ham or spam
+	print("    Calculating counts")
+	numham <- count(df %>%
+		filter(fold != holdoutfold) %>%
+		filter(spam == -1) %>%
+		group_by(doc_id) %>%
+		summarize(n = n()))[[1]]
+	numspam <- count(df %>%
+		filter(fold != holdoutfold) %>%
+		filter(spam == 1) %>%
+		group_by(doc_id) %>%
+		summarize(n = n()))[[1]]
+	pham <- numham / (numham + numspam)
+	pspam <- numspam / (numham + numspam)
+	
+	# Calculate the probability of seeing each word in the training set (which exludes the holdout fold)
+	print("    Calculating p_word")
+	dfwords <- df %>%
+		filter(fold != holdoutfold) %>%
+		group_by(spam, word) %>%
+		summarise(docct = n()) %>%
+		mutate(p = ifelse(spam == 1, docct / numspam, docct / numham)) %>%
+		rename(spam_of_word = spam) %>%
+	    slice_max(n = maxwords, order_by = p, with_ties = F)
+
+	# Using the holdout fold, calculate Bayes probabilities of ham and spam
+	print("    Calculating Bayes probabilities")
+	dfjoin <- df %>%
+		filter(fold == holdoutfold) %>%
+		inner_join(dfwords, by = c("word")) %>%
+		group_by(doc_id, spam, spam_of_word) %>%
+		summarise(prod_p = prod(p)) %>%
+		mutate(prod_p = ifelse(spam_of_word == 1, prod_p * pspam, prod_p * pham))
+
+	# Calculate final probability scores
+	print("    Calculating final probability scores")
+	dfresult <- dfjoin %>%
+		spread(spam_of_word, prod_p) %>%
+		rename(prod_p_ham = `-1`, prod_p_spam = `1`) %>%
+		mutate(prod_p_ham = ifelse(is.na(prod_p_ham), 0, prod_p_ham)) %>%
+		mutate(prod_p_spam = ifelse(is.na(prod_p_spam), 0, prod_p_spam)) %>%
+		mutate(p_spam = ifelse(prod_p_spam > prod_p_ham, prod_p_spam, 1 - prod_p_ham)) %>%
+		mutate(is_spam = ifelse(spam == 1, 1, 0)) %>%
+		mutate(is_ham = ifelse(spam == -1, 1, 0)) %>%
+		arrange(desc(p_spam))
+	
+	# Generate thresholds for ROC curves
+	print("    Generating thresholds for ROC curves")
+	currentThreshold <- 1
+	dfthreshold <- dfresult
+	for (i in 1:nrow(dfresult)) {
+		if (dfthreshold[i, 'is_spam'] == 1 & dfthreshold[i, 'p_spam'] >= currentThreshold) {
+			dfthreshold[i, 'true_pos'] <- 1
+			dfthreshold[i, 'false_pos'] <- 0
+		}
+		else if (dfthreshold[i, 'is_spam'] == 1 & dfthreshold[i, 'p_spam'] < currentThreshold) {
+			dfthreshold[i, 'true_pos'] <- 0
+			dfthreshold[i, 'false_pos'] <- 1
+		}
+		else {
+			dfthreshold[i, 'true_pos'] <- 0
+			dfthreshold[i, 'false_pos'] <- 0
+		}
+		dfthreshold[i, 'pct_instances'] <- i / nrow(dfresult)
+		currentThreshold <- dfthreshold[i, 'p_spam']
+	}
+	print("    Calculating cumulative rates")
+	dfthreshold$cum_true_pos <- cumsum(dfthreshold$true_pos)
+	dfthreshold$cum_false_pos <- cumsum(dfthreshold$false_pos)
+	dfthreshold$cum_true_pos_rate <- dfthreshold$cum_true_pos / sum(dfthreshold$true_pos)
+	dfthreshold$cum_false_pos_rate <- dfthreshold$cum_false_pos / sum(dfthreshold$false_pos)
+	dfthreshold$lift <- dfthreshold$cum_true_pos_rate / dfthreshold$pct_instances
+	dfthreshold$holdoutfold <- holdoutfold
+	
+	# Save data frame to a new instance so we can reference it outside of the for loop
+	if (exists('dfscores') && is.data.frame(get('dfscores'))) {
+        dfscores <- dfscores %>%
+	        bind_rows(dfthreshold)
+	} else {
+	    dfscores <- dfthreshold
+	}
+
+	# Generate ROC curve
+	print("    Ploting ROC curves")
+	if (!exists('rocplot')) {
+    	rocplot <- NULL
+	}
+	rocplot[[holdoutfold + 1]] <- dfthreshold %>%
+		ggplot() +
+	    theme(text = element_text(size = 10)) + 
+		geom_point(mapping = aes(x = cum_false_pos_rate, y = cum_true_pos_rate)) + 
+		ggtitle(paste0("Holdout fold #", holdoutfold)) + 
+	    xlab("False positive rate") +
+	    ylab("True positive rate")
+	if (!exists('auc_result')) {
+    	auc_result <- NULL
+	}
+	auc_result[holdoutfold + 1] <- area_under_curve(dfthreshold$cum_false_pos_rate, 
+	    dfthreshold$cum_true_pos_rate, method = "trapezoid")
+	print(paste0("   AUC (holdout fold #", holdoutfold, ") = ", auc_result[holdoutfold + 1]))
+
+}  # for each cross-validation set
+
+```
+
+
+### Graphs
+
+Present the results.
+
+```{r graphs}
+
+# Plot ROC curves
+grid.arrange(ncol = 2, rocplot[[1]], rocplot[[2]], rocplot[[3]], rocplot[[4]], rocplot[[5]], 
+    top = textGrob("ROC curves",gp=gpar(fontsize=12,font=3)))
+
+# Show AUC values
+df_auc <- data.frame(holdoutfold = c(0:(numfolds-1)), auc = auc_result)
+df_auc
+
+# Plot cumulative response curves
+dfscores %>% 
+    ggplot(aes(x = 100 * pct_instances, y = 100 * cum_true_pos_rate, 
+        color = as.character(holdoutfold), linetype = as.character(holdoutfold))) +
+    theme(text = element_text(size = 10)) + 
+    geom_point(alpha = 0.01) +
+    geom_line() + geom_abline(slope = 1, intercept = 0) +
+    xlab("Percentage of test instances") + 
+    ylab("Percentage of positives") + 
+    ggtitle("Cumulative resposne curve")
+
+dfscores %>% ggplot(aes(x = 100 * pct_instances, y = lift,  
+        color = as.character(holdoutfold), linetype = as.character(holdoutfold))) +
+    theme(text = element_text(size = 10)) + 
+    geom_point(alpha = 0.01) + 
+    geom_line() + 
+    xlab("Percentage of test instances") + 
+    ylab("Lift") + 
+    ggtitle("Lift curve")
+
+```
+
+
+### Top words
+
+Display the most common hammy and spammy words.
+
+```{r topwords}
+
+# Top hammy words
+dftopwords <- df %>%
+    filter(spam == -1) %>%
+    count(word, spam, sort = T) %>%
+    ungroup()
+head(dftopwords, 20)
+
+# Top spammy words
+dftopwords <- df %>%
+    filter(spam == 1) %>%
+    count(word, spam, sort = T) %>%
+    ungroup()
+head(dftopwords, 20)
+
+# Word cloud - hammy words
+df %>%
+    filter(spam == -1) %>%
+    count(word) %>% 
+    with(wordcloud(word, n, max.words = 75))
+
+# Word cloud - spammy words
+df %>%
+    filter(spam == 1) %>%
+    count(word) %>% 
+    with(wordcloud(word, n, max.words = 75))
+
+
+```
+
+
+### Conclusions
+
+As shown in the ROC plots, AUC table, and cumulative response curves, the model that performed best was the one in which holdoutfold #3 was exluded from the training data and used for testing. The model performs vert well, with an AUC of 0.95.
+
+It should be noted that when the full tokenized word set from fold was used for training, some models achieved an AUC of 1.000, but at the expense of runtimes of well over two minutes. To balance model performance with resource utilization, I introduced a "maxwords" variable and set it at 200. While I didn't do any benchmarking to evaluate the effect of maxwords on resource consumption, setting maxwords to 200 still achieved a respectable 0.95 AUC while reducing runtime to about 30 seconds.
